@@ -7,7 +7,7 @@ def main():
     
     print("Testing listing extraction...")
     
-    listings = scraper.get_listings(city="new-york-city", listing_type="sublets", max_pages = 5)
+    listings = scraper.get_listings(city="new-york-city", listing_type="sublets", max_pages = 2)
 
     print(f'Found {len(listings)} listings')
 

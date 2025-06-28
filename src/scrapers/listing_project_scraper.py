@@ -7,7 +7,6 @@ import re
 from ..models.listing import Listing, ListingType
 from ..models.search_params import ListingProjectSearchParams
 
-
 class ListingProjectScraper():
     """Scraper for Listing Project website"""
     
@@ -92,6 +91,12 @@ class ListingProjectScraper():
                     listing_data = self._extract_listing_data(container)
                     
                     if listing_data:
+                        # Fetch additional details from the individual listing page
+                        detail_data = self._fetch_and_extract_details(f"{self.BASE_URL}{href}")
+                        
+                        # Merge card data with detail data
+                        if detail_data:
+                            listing_data.update(detail_data)
                         page_new_count += 1
                         listing = Listing(
                             id=listing_id,
@@ -103,8 +108,10 @@ class ListingProjectScraper():
                             end_date=listing_data.get('end_date'),
                             neighborhood=listing_data.get('neighborhood'),
                             brief_description=listing_data.get('description'),
+                            full_description=listing_data.get('full_description'),
                             listing_type=ListingType.SUBLET,
-                            source_site=self.source_name
+                            source_site=self.source_name,
+                            detail_fetched=listing_data.get('detail_fetched', False)
                         )
                         all_listings.append(listing)
             
@@ -278,3 +285,33 @@ class ListingProjectScraper():
             description = description[:197] + '...'
         
         return description if description and len(description) > 20 else None
+    
+    def _fetch_and_extract_details(self, listing_url: str) -> dict:
+        """Fetch individual listing page and extract detailed information"""
+        try:
+            print(f"Fetching details from: {listing_url}")
+            
+            # Fetch the individual listing page
+            response = self.session.get(listing_url, timeout=30)
+            response.raise_for_status()
+            
+            # Parse HTML
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            div = soup.find('div', class_='text-grey-darkest')          
+
+            # Extract full description using html_to_clean_text for LLM processing
+            full_description = div.getText(" ", strip=True)
+            
+            # Extract any additional details that might be on the page
+            # For now, we'll just get the cleaned full content
+            return {
+                'full_description': full_description,
+                'detail_fetched': True
+            }
+            
+        except Exception as e:
+            print(f"Error fetching details from {listing_url}: {e}")
+            return {
+                'detail_fetched': False
+            }

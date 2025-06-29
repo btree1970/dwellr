@@ -1,8 +1,9 @@
-from typing import List, Optional
+from typing import List, Optional, Generator
 from datetime import datetime
 from bs4 import BeautifulSoup
 import requests
 import re
+import time
 
 from ..models.listing import Listing, ListingType
 from ..models.search_params import ListingProjectSearchParams
@@ -27,21 +28,25 @@ class ListingProjectScraper():
         })
         
         # Authenticate if credentials provided
-        if email and password:
-            self.authenticated = self._login(email, password)
+        #if email and password:
+        # self.authenticated = self._login(email, password)
         
     
     @property
     def source_name(self) -> str:
         return "listing_project"
     
-    def get_listings(self, **search_params) -> List[Listing]:
-        """Scrape listings from the website"""
+    def get_listings(self, delay_between_listings: float = 0, delay_between_pages: float = 1, skip_errors: bool = True, **search_params) -> Generator[Listing, None, None]:
+        """Scrape listings from the website - yields listings one at a time
+        
+        Args:
+            delay_between_listings: Seconds to wait between yielding listings (default: 0)
+            delay_between_pages: Seconds to wait between page fetches (default: 1)
+            skip_errors: Continue if individual listing extraction fails (default: True)
+            **search_params: Search parameters for ListingProjectSearchParams
+        """
         # Parse search parameters
         params = ListingProjectSearchParams(**search_params)
-        
-        all_listings = []
-        seen_ids = set()  # Track unique listing IDs
         
         # If specific page requested, just fetch that page
         if params.page:
@@ -71,7 +76,7 @@ class ListingProjectScraper():
             soup = BeautifulSoup(html, 'html.parser')
             
             # Find all listing card containers
-            listing_containers = soup.find_all('div', class_=re.compile(r'flex.*mb-6'))
+            listing_containers = soup.find_all('div', class_='flex flex-col md:flex-row mb-6')
             
             
             # If no listings found, we've probably reached the end
@@ -79,9 +84,9 @@ class ListingProjectScraper():
                 print(f"No listings found on page {page_num}, stopping pagination")
                 break
             
-            # Convert to Listing objects
+            # Process listing containers and yield listings one at a time
             page_new_count = 0
-            for container in [listing_containers[1]]:
+            for container in listing_containers:
                 # Find the listing link within this container
                 link = container.find('a', href=re.compile(r'^/listings/[^/]+$'))
                 if not link:
@@ -90,40 +95,54 @@ class ListingProjectScraper():
                 href = link.get('href', '')
                 listing_id = href.split('/')[-1] if href else None
                 
-                if listing_id and listing_id not in ['listings', ''] and listing_id not in seen_ids:
-                    seen_ids.add(listing_id)
                     
-                    # Extract data from the listing card container
-                    listing_data = self._extract_listing_data(container)
-                    
-                    if listing_data:
-                        # Fetch additional details from the individual listing page
-                        detail_data = self._fetch_and_extract_details(f"{self.BASE_URL}{href}")
-                        
-                        # Merge card data with detail data
-                        if detail_data:
-                            listing_data.update(detail_data)
-                        page_new_count += 1
-                        listing = Listing(
-                            id=listing_id,
-                            url=f"{self.BASE_URL}{href}",
-                            title=listing_data.get('title', 'No title'),
-                            price=listing_data.get('price'),
-                            price_period=listing_data.get('price_period'),
-                            start_date=listing_data.get('start_date'),
-                            end_date=listing_data.get('end_date'),
-                            neighborhood=listing_data.get('neighborhood'),
-                            brief_description=listing_data.get('description'),
-                            full_description=listing_data.get('full_description'),
-                            listing_type=ListingType.SUBLET,
-                            source_site=self.source_name,
-                            detail_fetched=listing_data.get('detail_fetched', False)
-                        )
-                        all_listings.append(listing)
+                try:
+                      # Extract data from the listing card container
+                      listing_data = self._extract_listing_data(container)
+                      
+                      if listing_data:
+                          # Fetch additional details from the individual listing page
+                          detail_data = self._fetch_and_extract_details(f"{self.BASE_URL}{href}")
+                          
+                          # Merge card data with detail data
+                          if detail_data:
+                              listing_data.update(detail_data)
+                          
+                          page_new_count += 1
+                          listing = Listing(
+                              id=listing_id,
+                              url=f"{self.BASE_URL}{href}",
+                              title=listing_data.get('title', 'No title'),
+                              price=listing_data.get('price'),
+                              price_period=listing_data.get('price_period'),
+                              start_date=listing_data.get('start_date'),
+                              end_date=listing_data.get('end_date'),
+                              neighborhood=listing_data.get('neighborhood'),
+                              brief_description=listing_data.get('description'),
+                              full_description=listing_data.get('full_description'),
+                              listing_type=ListingType.SUBLET,
+                              source_site=self.source_name,
+                              detail_fetched=listing_data.get('detail_fetched', False)
+                          )
+                          
+                          # Yield the listing
+                          yield listing
+                          
+                          # Rate limiting between listings
+                          if delay_between_listings > 0:
+                              time.sleep(delay_between_listings)
+                              
+                except Exception as e:
+                        print(f"Error processing listing {listing_id}: {e}")
+                        if not skip_errors:
+                            raise
+                        # Continue to next listing if skip_errors is True
             
-            print(f"Found {len(listing_containers)} containers on page {page_num}, added {page_new_count} new unique listings")
-        
-        return all_listings
+            print(f"Found {len(listing_containers)} containers on page {page_num}, yielded {page_new_count} new unique listings")
+            
+            # Rate limiting between pages (except for the last page)
+            if page_num < max(pages_to_fetch) and delay_between_pages > 0:
+                time.sleep(delay_between_pages)
     
     def _extract_listing_data(self, listing_element) -> dict:
         """Extract data from a listing card element (the <a> tag containing all card info)"""
@@ -313,8 +332,6 @@ class ListingProjectScraper():
             # For now, we'll just get the cleaned full content
             return {
                 'full_description': full_description,
-                'contact_name':
-                'contact_email': 
                 'detail_fetched': True
             }
             

@@ -27,8 +27,8 @@ class Listing:
     brief_description: Optional[str] = None  # Preview text from card
     full_description: Optional[str] = None  # Complete listing text from detail page
 
-    contact_name = Optional[str] = None
-    contact_email = Option[str] = None
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
     
     # Metadata
     source_site: str = ""
@@ -52,8 +52,8 @@ class Listing:
             "end_date": self.end_date.isoformat() if self.end_date else None,
             "neighborhood": self.neighborhood,
             "listing_type": self.listing_type.value,
-            "brief_description": self.brief_description,
-            "full_description": self.full_description,
+            #"brief_description": self.brief_description,
+            #"full_description": self.full_description,
             "source_site": self.source_site,
             "scraped_at": self.scraped_at.isoformat() if self.scraped_at else None,
             "detail_fetched": self.detail_fetched

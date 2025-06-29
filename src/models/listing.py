@@ -26,6 +26,9 @@ class Listing:
     # Content fields
     brief_description: Optional[str] = None  # Preview text from card
     full_description: Optional[str] = None  # Complete listing text from detail page
+
+    contact_name = Optional[str] = None
+    contact_email = Option[str] = None
     
     # Metadata
     source_site: str = ""

@@ -12,17 +12,23 @@ class ListingProjectScraper():
     
     BASE_URL = "https://www.listingsproject.com"
 
-    def __init__(self):
+    def __init__(self, email=None, password=None):
         self.session = requests.Session()
+        self.authenticated = False
 
         # Set default headers
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.5',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8', 
+            'Accept-Language': 'en-US,en;q=0.5',
             'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
         })
+        
+        # Authenticate if credentials provided
+        if email and password:
+            self.authenticated = self._login(email, password)
         
     
     @property
@@ -75,7 +81,7 @@ class ListingProjectScraper():
             
             # Convert to Listing objects
             page_new_count = 0
-            for container in listing_containers:
+            for container in [listing_containers[1]]:
                 # Find the listing link within this container
                 link = container.find('a', href=re.compile(r'^/listings/[^/]+$'))
                 if not link:
@@ -307,6 +313,8 @@ class ListingProjectScraper():
             # For now, we'll just get the cleaned full content
             return {
                 'full_description': full_description,
+                'contact_name':
+                'contact_email': 
                 'detail_fetched': True
             }
             
@@ -315,3 +323,53 @@ class ListingProjectScraper():
             return {
                 'detail_fetched': False
             }
+    
+    def _login(self, email: str, password: str) -> bool:
+        """Authenticate with the Listings Project website"""
+        try:
+            print(f"Attempting to login with email: {email}")
+            
+            # Step 1: Get login page to extract CSRF token
+            login_page_url = f"{self.BASE_URL}/user_sessions"
+            response = self.session.get(login_page_url)
+            response.raise_for_status()
+            
+            # Parse the login page to extract authenticity token
+            soup = BeautifulSoup(response.text, 'html.parser')
+            token_input = soup.find('input', {'name': 'authenticity_token'})
+            
+            if not token_input:
+                print("Could not find authenticity token on login page")
+                return False
+            
+            authenticity_token = token_input.get('value')
+            print(f"Extracted authenticity token: {authenticity_token[:20]}...")
+            
+            # Step 2: Submit login credentials
+            login_data = {
+                'authenticity_token': authenticity_token,
+                'user_session[email]': email,
+                'user_session[wants_to]': 'signin',
+                'user_session[password]': password,
+                'commit': 'Next'
+            }
+            
+            response = self.session.post(login_page_url, data=login_data)
+            
+            # Step 3: Check if login was successful
+            # Successful login should redirect (status 302) or return 200 with no error messages
+            if response.status_code in [200, 302]:
+                # Check if we got authentication cookies
+                if 'user_credentials' in self.session.cookies:
+                    print("Login successful - authentication cookies received")
+                    return True
+                else:
+                    print("Login may have failed - no user_credentials cookie found")
+                    return False
+            else:
+                print(f"Login failed with status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"Login error: {e}")
+            return False

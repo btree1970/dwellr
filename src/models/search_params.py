@@ -25,6 +25,6 @@ class ListingProjectSearchParams(BaseModel):
     max_pages: int = Field(
         default=1,
         ge=1,
-        le=10,
+        le=100,
         description="Maximum number of pages to scrape"
     )

@@ -1,13 +1,11 @@
-import os
-import time
 from typing import Generator, Optional, Dict, Any, List
-from datetime import datetime
 from openai import OpenAI
 
-from ..models.listing import Listing
-from ..models.email import EmailData
-from ..models.communication import Communication, CommunicationType, CommunicationStatus
-from ..database.db_manager import DatabaseManager
+from src.models.listing import Listing
+from src.models.email import EmailData
+from src.models.communication import Communication, CommunicationType, CommunicationStatus
+from src.database.db import DatabaseManager
+from src.config import settings
 import json
 
 
@@ -26,7 +24,7 @@ class ListingAgent:
         self.db = DatabaseManager(db_path)
         
         # Initialize OpenAI client
-        api_key = openai_api_key or os.getenv('OPENAI_API_KEY')
+        api_key = openai_api_key or settings.openai_api_key
         if not api_key:
             raise ValueError("OpenAI API key must be provided via parameter or OPENAI_API_KEY environment variable")
         

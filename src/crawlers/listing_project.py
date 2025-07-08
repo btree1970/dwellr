@@ -6,21 +6,18 @@ import re
 import time
 
 
-from src import database
-from src.database.db_manager import DatabaseManager
-from ..models.listing import Listing, ListingType
-from ..models.search_params import ListingProjectSearchParams
+from src.models.listing import Listing, ListingType
+from src.models.search_params import ListingProjectSearchParams
+from src.database.db import get_db_session
 
 class ListingProject():
     """Scraper for Listing Project website"""
     
     BASE_URL = "https://www.listingsproject.com"
 
-    def __init__(self, database_manager: DatabaseManager, email=None, password=None):
+    def __init__(self, email=None, password=None):
         self.session = requests.Session()
         self.authenticated = False
-
-        self.db = database_manager
 
         # Set default headers
         self.session.headers.update({
@@ -122,10 +119,12 @@ class ListingProject():
                 stats['total_processed'] += 1
                 
                 # Check if listing already exists in database (deduplication)
-                if self.db.listing_exists(listing_id):
-                    print(f"Skipping duplicate listing: {listing_id}")
-                    stats['duplicates_skipped'] += 1
-                    continue
+                with get_db_session() as db:
+                    existing_listing = db.query(Listing).filter(Listing.id == listing_id).first()
+                    if existing_listing:
+                        print(f"Skipping duplicate listing: {listing_id}")
+                        stats['duplicates_skipped'] += 1
+                        continue
                     
                 try:
                     # Extract data from the listing card container
@@ -157,16 +156,17 @@ class ListingProject():
                             source_site=self.source_name,
                         )
                         
-                        # Store via ListingService
-                        success = self.db.insert_listing(listing)
-                        
-                        if success:
-                            page_new_count += 1
-                            stats['new_listings'] += 1
-                            print(f"Stored listing: {listing_id}")
-                        else:
+                        # Store directly to database
+                        try:
+                            with get_db_session() as db:
+                                db.add(listing)
+                                db.commit()
+                                page_new_count += 1
+                                stats['new_listings'] += 1
+                                print(f"Stored listing: {listing_id}")
+                        except Exception as e:
+                            print(f"Failed to store listing {listing_id}: {e}")
                             stats['errors'] += 1
-                            print(f"Failed to store listing: {listing_id}")
                         
                         # Rate limiting between listings
                         if delay_between_listings > 0:

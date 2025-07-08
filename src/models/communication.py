@@ -1,8 +1,10 @@
-from dataclasses import dataclass
 from typing import Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
 import uuid
+from sqlalchemy import Column, String, DateTime, Integer, Enum as SQLEnum, ForeignKey
+from sqlalchemy.orm import relationship
+from src.database.db import Base
 
 
 class CommunicationType(Enum):
@@ -22,51 +24,41 @@ class CommunicationStatus(Enum):
     REPLIED = "replied"
 
 
-@dataclass
-class Communication:
+class Communication(Base):
     """Model for tracking rental listing communications"""
+    __tablename__ = "communications"
     
-    # Primary identification
-    id: str
-    listing_id: str
+    # SQLAlchemy column definitions
+    id = Column(String, primary_key=True)
+    listing_id = Column(String, ForeignKey("listings.id"), nullable=False)
+    communication_type = Column(SQLEnum(CommunicationType), nullable=False)
+    status = Column(SQLEnum(CommunicationStatus), nullable=False)
+    subject = Column(String, nullable=True)
+    body = Column(String, nullable=True)
+    to_email = Column(String, nullable=True)
+    to_phone = Column(String, nullable=True)
+    to_name = Column(String, nullable=True)
+    from_email = Column(String, nullable=True)
+    from_phone = Column(String, nullable=True)
+    from_name = Column(String, nullable=True)
+    generated_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+    response_received_at = Column(DateTime, nullable=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    last_attempt_at = Column(DateTime, nullable=True)
+    error_message = Column(String, nullable=True)
     
-    # Communication details
-    communication_type: CommunicationType
-    status: CommunicationStatus
+    # Relationship
+    listing = relationship("Listing", back_populates="communications")
     
-    # Content
-    subject: Optional[str] = None
-    body: Optional[str] = None
-    
-    # Recipient information
-    to_email: Optional[str] = None
-    to_phone: Optional[str] = None
-    to_name: Optional[str] = None
-    
-    # Sender information
-    from_email: Optional[str] = None
-    from_phone: Optional[str] = None
-    from_name: Optional[str] = None
-    
-    # Tracking timestamps
-    generated_at: Optional[datetime] = None
-    sent_at: Optional[datetime] = None
-    delivered_at: Optional[datetime] = None
-    response_received_at: Optional[datetime] = None
-    
-    # Attempt tracking
-    attempts: int = 0
-    last_attempt_at: Optional[datetime] = None
-    
-    # Error handling
-    error_message: Optional[str] = None
-    
-    def __post_init__(self):
-        """Set default values after initialization"""
-        if self.id is None:
-            self.id = str(uuid.uuid4())
-        if self.generated_at is None:
-            self.generated_at = datetime.now()
+    def __init__(self, **kwargs):
+        """Initialize with default values"""
+        if 'id' not in kwargs:
+            kwargs['id'] = str(uuid.uuid4())
+        if 'generated_at' not in kwargs:
+            kwargs['generated_at'] = datetime.now()
+        super().__init__(**kwargs)
     
     @classmethod
     def create_email(cls, listing_id: str, subject: str, body: str, 

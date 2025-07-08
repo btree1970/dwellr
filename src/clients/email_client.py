@@ -4,28 +4,28 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional, Dict, Any
 from datetime import datetime
-import os
 
-from ..models.email import EmailData
+from src.models.email import EmailData
+from src.config import settings
 
 
 #TODO: use oauth client instead
 class EmailClient:
     
-    def __init__(self, smtp_server: str = "smtp.gmail.com", smtp_port: int = 587, 
+    def __init__(self, smtp_server: Optional[str] = None, smtp_port: Optional[int] = None, 
                  username: Optional[str] = None, password: Optional[str] = None):
         """Initialize email client
         
         Args:
-            smtp_server: SMTP server address (default: Gmail)
-            smtp_port: SMTP server port (default: 587 for TLS)
-            username: Email username (defaults to EMAIL_USERNAME env var)
-            password: Email password (defaults to EMAIL_PASSWORD env var)
+            smtp_server: SMTP server address (defaults to settings.smtp_server)
+            smtp_port: SMTP server port (defaults to settings.smtp_port)
+            username: Email username (defaults to settings.email_username)
+            password: Email password (defaults to settings.email_password)
         """
-        self.smtp_server = smtp_server
-        self.smtp_port = smtp_port
-        self.username = username or os.getenv('EMAIL_USERNAME')
-        self.password = password or os.getenv('EMAIL_PASSWORD')
+        self.smtp_server = smtp_server or settings.smtp_server
+        self.smtp_port = smtp_port or settings.smtp_port
+        self.username = username or settings.email_username
+        self.password = password or settings.email_password
         
         if not self.username or not self.password:
             raise ValueError("Email credentials must be provided via parameters or EMAIL_USERNAME/EMAIL_PASSWORD environment variables")

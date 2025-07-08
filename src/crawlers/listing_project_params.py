@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
+from typing import Optional
+
+from src.models.listing import ListingType
 
 
 class ListingProjectSearchParams(BaseModel):
@@ -11,8 +13,8 @@ class ListingProjectSearchParams(BaseModel):
         description="City slug (e.g., 'new-york-city', 'san-francisco')"
     )
     
-    listing_type: Literal["sublets", "apartments", "rooms"] = Field(
-        default="sublets",
+    listing_type: ListingType = Field(
+        default=ListingType.SUBLET,
         description="Type of listing to search for"
     )
     

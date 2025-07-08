@@ -7,7 +7,7 @@ import time
 
 
 from src.models.listing import Listing, ListingType
-from src.models.search_params import ListingProjectSearchParams
+from src.crawlers.listing_project_params import ListingProjectSearchParams
 from src.database.db import get_db_session
 
 class ListingProject():
@@ -72,8 +72,9 @@ class ListingProject():
             pages_to_fetch = range(1, params.max_pages + 1)
         
         for page_num in pages_to_fetch:
-            # Build URL
-            url = f"{self.BASE_URL}/real-estate/{params.city}/{params.listing_type}"
+            # Build URL - map enum values to website URL format
+            listing_type_url = "sublets" if params.listing_type == ListingType.SUBLET else "rentals"
+            url = f"{self.BASE_URL}/real-estate/{params.city}/{listing_type_url}"
             if page_num > 1:
                 url += f"?page={page_num}"
             

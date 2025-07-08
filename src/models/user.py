@@ -10,7 +10,6 @@ from src.models.listing import ListingType
 
 
 class User(Base):
-    """User model with integrated listing preferences"""
     __tablename__ = "users"
     
     # Core user information
@@ -28,13 +27,11 @@ class User(Base):
     preferred_end_date = Column(DateTime, nullable=True)
     preferred_listing_type = Column(SQLEnum(ListingType), nullable=True)
     
-    # LLM-managed preferences (consolidated)
     preference_profile = Column(String, nullable=True)     # Comprehensive LLM-managed preference description
     preference_history = Column(JSON, nullable=True)       # Track preference evolution over time
     preference_version = Column(Integer, nullable=False, default=1)  # Version number for tracking updates
     last_preference_update = Column(DateTime, nullable=True)  # When preferences were last modified
     
-    # Timestamps
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
     

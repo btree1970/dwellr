@@ -1,8 +1,6 @@
-from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from enum import Enum
 from sqlalchemy import Column, String, Float, DateTime, Boolean, Enum as SQLEnum
-from sqlalchemy.orm import relationship
 from src.database.db import Base
 
 class ListingType(Enum):
@@ -30,8 +28,6 @@ class Listing(Base):  # Remove @dataclass
     detail_fetched = Column(Boolean, nullable=False, default=False)
     scraped_at = Column(DateTime, nullable=True)
     
-    # Relationship
-    # communications = relationship("Communication", back_populates="listing")
     
     def __repr__(self):
         return f"<Listing(id='{self.id}', title='{self.title}', price={self.price})>"

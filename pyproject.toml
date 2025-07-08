@@ -9,10 +9,12 @@ dependencies = [
     "html2text>=2025.4.15",
     "lxml>=5.4.0",
     "openai>=1.58.1",
+    "pydantic-settings>=2.10.1",
     "pydantic>=2.11.7",
     "python-dateutil>=2.9.0.post0",
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
+    "sqlalchemy>=2.0.41",
 ]
 
 [dependency-groups]

@@ -1,26 +1,22 @@
-from src.scrapers.listing_project_scraper import ListingProjectScraper
-import json
-import os
+from src.crawlers.listing_project import ListingProject
+from src.database.db import db_manager 
 
-from dotenv import load_dotenv
 
-load_dotenv()
+from src.config import settings
 
 
 def main():
-    email = os.getenv('LISTINGS_EMAIL')
-    password = os.getenv('LISTINGS_PASSWORD')
 
-    scraper = ListingProjectScraper(email=email, password=password)
+    db_manager.init_db()
+
+    scraper = ListingProject(email=settings.listings_email, password=settings.listings_password)
     
     print("Testing listing extraction...")
     
-    listings = scraper.get_listings(city="new-york-city", listing_type="sublets", max_pages = 1)
+    listings = scraper.store_listings(city="new-york-city", listing_type="sublets", max_pages = 1)
 
     print(f'Found {len(listings)} listings')
 
-    for listing in listings[:5]:
-        print(json.dumps(listing.to_dict(), indent=2))
 
     
 

@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     """Application configuration using Pydantic BaseSettings for type-safe environment variable handling."""
     
     # Database settings
-    database_url: str = Field(default="sqlite:///./dwell.db", description="Database connection URL")
+    database_url: str = Field(default="sqlite:////tmp/dwell/dwell.db", description="Database connection URL")
     
     # Email settings
     email_username: Optional[str] = Field(default=None, description="Email username for SMTP authentication")

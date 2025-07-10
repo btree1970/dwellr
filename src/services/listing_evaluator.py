@@ -16,7 +16,7 @@ class EvaluationResponse(BaseModel):
         description="Rating from 1-10 where 1=poor match, 10=excellent match"
     )
     reasoning: str = Field(
-        min_length=20, max_length=200,
+        min_length=20, max_length=500,
         description="Brief explanation of the score focusing on key factors"
     )
 
@@ -95,7 +95,7 @@ class ListingEvaluator:
                     "content": prompt
                 }
             ],
-            max_tokens=200, 
+            max_tokens=700, 
             temperature=0.3, 
             response_format=EvaluationResponse
         )
@@ -145,6 +145,17 @@ class ListingEvaluator:
         hard_filters = user.get_hard_filters()
         
         # Build user preferences section
+        flexibility_days = hard_filters.get('date_flexibility_days', 0)
+        flexibility_note = f" (±{flexibility_days} days flexibility)" if flexibility_days > 0 else ""
+        
+        # Build price range info with period
+        price_range_info = "no price preference"
+        if hard_filters.get('min_price') or hard_filters.get('max_price'):
+            price_period = hard_filters.get('price_period', 'month')
+            min_price = hard_filters.get('min_price', 'no min')
+            max_price = hard_filters.get('max_price', 'no max')
+            price_range_info = f"${min_price} - ${max_price} per {price_period}"
+        
         user_context = f"""
 USER PROFILE:
 - Name: {user.name}
@@ -152,19 +163,26 @@ USER PROFILE:
 - Bio: {user.bio or 'Not specified'}
 
 HARD REQUIREMENTS (already filtered):
-- Price range: ${hard_filters.get('min_price', 'no min')} - ${hard_filters.get('max_price', 'no max')}
-- Dates: {hard_filters.get('preferred_start_date', 'flexible')} to {hard_filters.get('preferred_end_date', 'flexible')}
+- Price range: {price_range_info}
+- Dates: {hard_filters.get('preferred_start_date', 'flexible')} to {hard_filters.get('preferred_end_date', 'flexible')}{flexibility_note}
 - Listing type: {hard_filters.get('preferred_listing_type', 'any')}
 
 DETAILED PREFERENCES:
 {user.preference_profile or 'No specific preferences provided'}
 """
 
-        # Build listing context
+        # Build listing context with total cost calculation
+        stay_duration = hard_filters.get('stay_duration_days')
+        price_info = f"${listing.price}/{listing.price_period}"
+        
+        if stay_duration and listing.price and listing.price_period:
+            total_cost = listing.calculate_total_cost_for_duration(stay_duration)
+            price_info = f"${listing.price}/{listing.price_period} (${total_cost:.0f} total for {stay_duration} days)"
+        
         listing_context = f"""
 LISTING TO EVALUATE:
 - Title: {listing.title or 'No title'}
-- Price: ${listing.price}/{listing.price_period} ({listing.price_period} rate)
+- Price: {price_info}
 - Dates: {listing.start_date} to {listing.end_date}
 - Neighborhood: {listing.neighborhood or 'Not specified'}
 - Contact: {listing.contact_name or 'Anonymous'}

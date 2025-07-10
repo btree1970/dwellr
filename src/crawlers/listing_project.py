@@ -6,7 +6,7 @@ import re
 import time
 
 
-from src.models.listing import Listing, ListingType
+from src.models.listing import Listing, ListingType, PricePeriod
 from src.crawlers.listing_project_params import ListingProjectSearchParams
 from src.database.db import get_db_session
 
@@ -60,7 +60,7 @@ class ListingProject():
             'errors': 0,
             'pages_processed': 0
         }
-        
+
         # Parse search parameters
         params = ListingProjectSearchParams(**search_params)
         
@@ -251,11 +251,11 @@ class ListingProject():
                     
                     # Normalize to monthly price
                     if original_period in ['day', 'night']:
-                        return price, 'day'
+                        return price, PricePeriod.DAY
                     elif original_period in ['week', 'wk']:
-                        return price, 'week'
+                        return price, PricePeriod.WEEK
                     else:
-                        return price, 'month'
+                        return price, PricePeriod.MONTH
                         
                 except ValueError:
                     continue

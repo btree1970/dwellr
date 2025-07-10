@@ -61,6 +61,7 @@ class ListingAgent:
             return stats
         
         # Estimate cost before starting
+        # TODO: Find a good way to handle this good for now
         estimated_cost = self._estimate_evaluation_cost(len(candidate_listings))
         if estimated_cost > max_cost:
             stats['budget_exceeded'] = True
@@ -194,18 +195,54 @@ class ListingAgent:
             ListingEvaluation.id.is_(None)  # Only listings not yet evaluated
         )
         
-        # Apply hard filters
-        if 'min_price' in hard_filters:
-            query = query.filter(Listing.price >= hard_filters['min_price'])
+        # Apply price filters with normalization for user's stay duration
+        stay_duration = hard_filters.get('stay_duration_days')
+        if stay_duration and ('min_total_cost' in hard_filters or 'max_total_cost' in hard_filters):
+            from sqlalchemy import case
+            from src.models.listing import PricePeriod
+            
+            # Get pre-calculated normalized price bounds from hard filters
+            user_min_total = hard_filters.get('min_total_cost')
+            user_max_total = hard_filters.get('max_total_cost')
+            
+            # Create SQL expression for listing's total cost
+            listing_total_cost = case(
+                (Listing.price_period == PricePeriod.DAY, Listing.price * stay_duration),
+                (Listing.price_period == PricePeriod.WEEK, Listing.price * (stay_duration / 7.0)),
+                (Listing.price_period == PricePeriod.MONTH, Listing.price * (stay_duration / 30.0)),
+                else_=Listing.price * stay_duration
+            )
+            
+            # Apply price filters in SQL
+            if user_min_total is not None:
+                query = query.filter(listing_total_cost >= user_min_total)
+            if user_max_total is not None:
+                query = query.filter(listing_total_cost <= user_max_total)
+                
+        elif not stay_duration:
+            # Fallback to direct price comparison if no stay duration
+            if 'min_price' in hard_filters:
+                query = query.filter(Listing.price >= hard_filters['min_price'])
+            
+            if 'max_price' in hard_filters:
+                query = query.filter(Listing.price <= hard_filters['max_price'])
         
-        if 'max_price' in hard_filters:
-            query = query.filter(Listing.price <= hard_filters['max_price'])
+        # Apply date filters with flexibility
+        flexibility_days = hard_filters.get('date_flexibility_days', 0)
         
         if 'preferred_start_date' in hard_filters:
-            query = query.filter(Listing.start_date >= hard_filters['preferred_start_date'])
+            from datetime import timedelta
+            preferred_start = hard_filters['preferred_start_date']
+            earliest_start = preferred_start - timedelta(days=flexibility_days)
+            latest_start = preferred_start + timedelta(days=flexibility_days)
+            query = query.filter(Listing.start_date.between(earliest_start, latest_start))
         
         if 'preferred_end_date' in hard_filters:
-            query = query.filter(Listing.end_date <= hard_filters['preferred_end_date'])
+            from datetime import timedelta
+            preferred_end = hard_filters['preferred_end_date']
+            earliest_end = preferred_end - timedelta(days=flexibility_days)
+            latest_end = preferred_end + timedelta(days=flexibility_days)
+            query = query.filter(Listing.end_date.between(earliest_end, latest_end))
         
         if 'preferred_listing_type' in hard_filters:
             query = query.filter(Listing.listing_type == hard_filters['preferred_listing_type'])

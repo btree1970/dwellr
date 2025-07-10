@@ -26,7 +26,7 @@ class ListingAgent:
             evaluator: ListingEvaluator instance (creates default if None)
         """
         self.db = db
-        self.evaluator = evaluator or ListingEvaluator()
+        self.evaluator = evaluator
     
     def find_and_evaluate_listings(
         self, 
@@ -206,12 +206,13 @@ class ListingAgent:
             user_max_total = hard_filters.get('max_total_cost')
             
             # Create SQL expression for listing's total cost
-            listing_total_cost = case(
+            from sqlalchemy import func
+            listing_total_cost = func.round(case(
                 (Listing.price_period == PricePeriod.DAY, Listing.price * stay_duration),
                 (Listing.price_period == PricePeriod.WEEK, Listing.price * (stay_duration / 7.0)),
                 (Listing.price_period == PricePeriod.MONTH, Listing.price * (stay_duration / 30.0)),
                 else_=Listing.price * stay_duration
-            )
+            ), 2)
             
             # Apply price filters in SQL
             if user_min_total is not None:
@@ -228,21 +229,27 @@ class ListingAgent:
                 query = query.filter(Listing.price <= hard_filters['max_price'])
         
         # Apply date filters with flexibility
+        # Logic: Find listings that are available during the user's preferred period
         flexibility_days = hard_filters.get('date_flexibility_days', 0)
         
-        if 'preferred_start_date' in hard_filters:
+        if 'preferred_start_date' in hard_filters and 'preferred_end_date' in hard_filters:
             from datetime import timedelta
             preferred_start = hard_filters['preferred_start_date']
-            earliest_start = preferred_start - timedelta(days=flexibility_days)
-            latest_start = preferred_start + timedelta(days=flexibility_days)
-            query = query.filter(Listing.start_date.between(earliest_start, latest_start))
-        
-        if 'preferred_end_date' in hard_filters:
-            from datetime import timedelta
             preferred_end = hard_filters['preferred_end_date']
-            earliest_end = preferred_end - timedelta(days=flexibility_days)
-            latest_end = preferred_end + timedelta(days=flexibility_days)
-            query = query.filter(Listing.end_date.between(earliest_end, latest_end))
+            
+            # Apply flexibility to user's dates
+            earliest_user_start = preferred_start - timedelta(days=flexibility_days)
+            latest_user_start = preferred_start + timedelta(days=flexibility_days)
+            earliest_user_end = preferred_end - timedelta(days=flexibility_days)
+            latest_user_end = preferred_end + timedelta(days=flexibility_days)
+            
+            # Listing must be available during user's (flexible) stay period
+            # Listing.start_date <= user's latest start (listing available by then)
+            # Listing.end_date >= user's earliest end (listing available until then)
+            query = query.filter(
+                Listing.start_date <= latest_user_start,
+                Listing.end_date >= earliest_user_end
+            )
         
         if 'preferred_listing_type' in hard_filters:
             query = query.filter(Listing.listing_type == hard_filters['preferred_listing_type'])

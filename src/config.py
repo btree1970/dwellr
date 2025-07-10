@@ -1,3 +1,4 @@
+import os
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
@@ -25,8 +26,12 @@ class Settings(BaseSettings):
     # Application settings
     debug: bool = Field(default=False, description="Enable debug mode")
     log_level: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR)")
+    env: str = Field(default="development", description="Environment (development, test, production)")
 
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+    model_config = SettingsConfigDict(
+        env_file='.env.test' if os.getenv('ENV') == 'test' else '.env', 
+        env_file_encoding='utf-8'
+    )
     
 
 

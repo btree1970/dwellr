@@ -95,8 +95,8 @@ class User(Base):
             
             # Pre-calculate normalized price bounds for efficient filtering
             if self.min_price is not None:
-                filters['min_total_cost'] = self._calculate_total_cost(self.min_price, stay_duration)
+                filters['min_total_cost'] = round(self._calculate_total_cost(self.min_price, stay_duration), 2)
             if self.max_price is not None:
-                filters['max_total_cost'] = self._calculate_total_cost(self.max_price, stay_duration)
+                filters['max_total_cost'] = round(self._calculate_total_cost(self.max_price, stay_duration), 2)
             
         return filters

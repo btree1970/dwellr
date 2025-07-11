@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID
+from typing import Optional, Dict, Any
+from sqlalchemy import String, DateTime, JSON, Float, Integer, Enum as SQLEnum
 from sqlalchemy.sql import func
+from sqlalchemy.orm import Mapped, mapped_column
 import uuid
 
 from src.database.db import Base
@@ -13,29 +13,29 @@ class User(Base):
     __tablename__ = "users"
     
     # Core user information
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String, nullable=False)
-    email = Column(String, nullable=False, unique=True)
-    phone = Column(String, nullable=True)
-    occupation = Column(String, nullable=True)
-    bio = Column(String, nullable=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String)
+    email: Mapped[str] = mapped_column(String, unique=True)
+    phone: Mapped[Optional[str]] = mapped_column(String)
+    occupation: Mapped[Optional[str]] = mapped_column(String)
+    bio: Mapped[Optional[str]] = mapped_column(String)
     
     # Hard filter preferences (database-level filtering only)
-    min_price = Column(Float, nullable=True)
-    max_price = Column(Float, nullable=True)
-    price_period = Column(SQLEnum(PricePeriod), nullable=False, default=PricePeriod.MONTH)  # Period for price preferences
-    preferred_start_date = Column(DateTime, nullable=True)
-    preferred_end_date = Column(DateTime, nullable=True)
-    preferred_listing_type = Column(SQLEnum(ListingType), nullable=True)
-    date_flexibility_days = Column(Integer, nullable=False, default=0)  # Days of flexibility for date filtering
+    min_price: Mapped[Optional[float]] = mapped_column(Float)
+    max_price: Mapped[Optional[float]] = mapped_column(Float)
+    price_period: Mapped[PricePeriod] = mapped_column(SQLEnum(PricePeriod), default=PricePeriod.MONTH)
+    preferred_start_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    preferred_end_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    preferred_listing_type: Mapped[Optional[ListingType]] = mapped_column(SQLEnum(ListingType))
+    date_flexibility_days: Mapped[int] = mapped_column(Integer, default=0)
     
-    preference_profile = Column(String, nullable=True)     # Comprehensive LLM-managed preference description
-    preference_history = Column(JSON, nullable=True)       # Track preference evolution over time
-    preference_version = Column(Integer, nullable=False, default=1)  # Version number for tracking updates
-    last_preference_update = Column(DateTime, nullable=True)  # When preferences were last modified
+    preference_profile: Mapped[Optional[str]] = mapped_column(String)
+    preference_history: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
+    preference_version: Mapped[int] = mapped_column(Integer, default=1)
+    last_preference_update: Mapped[Optional[datetime]] = mapped_column(DateTime)
     
-    created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     
     def __repr__(self):
         return f"<User(id='{self.id}', name='{self.name}', email='{self.email}')>"
@@ -68,7 +68,7 @@ class User(Base):
     
     def get_hard_filters(self) -> Dict[str, Any]:
         """Return database-level filtering criteria"""
-        filters = {}
+        filters: Dict[str, Any] = {}
         
         if self.min_price is not None:
             filters['min_price'] = self.min_price

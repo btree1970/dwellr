@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, cast
+from typing import Dict, Any, Optional, List 
 from dataclasses import dataclass
 from datetime import datetime
 import time
@@ -135,7 +135,7 @@ class ListingEvaluator:
             cost_usd=cost_usd,
             evaluation_time_ms=evaluation_time_ms,
             model_used=self.model,
-            evaluated_at=datetime.utcnow()
+            evaluated_at=datetime.now()
         )
     
     def _build_evaluation_prompt(self, user: User, listing: Listing) -> str:
@@ -225,7 +225,7 @@ Include a brief explanation of your score focusing on the key factors that influ
         
         return input_cost + output_cost
     
-    def get_cost_summary(self, evaluations: list[EvaluationResult]) -> Dict[str, Any]:
+    def get_cost_summary(self, evaluations: List[EvaluationResult]) -> Dict[str, Any]:
         """Generate cost summary from multiple evaluations"""
         if not evaluations:
             return {"total_evaluations": 0}

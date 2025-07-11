@@ -1,5 +1,6 @@
-from typing import List, Optional, Generator
-from datetime import datetime
+from typing import Optional, Any, Dict, List
+from bs4 import Tag
+from sqlalchemy.orm import Session 
 from bs4 import BeautifulSoup
 import requests
 import re
@@ -15,7 +16,7 @@ class ListingProject():
     
     BASE_URL = "https://www.listingsproject.com"
 
-    def __init__(self, email=None, password=None):
+    def __init__(self, email: str | None, password: str | None):
         self.session = requests.Session()
         self.authenticated = False
 
@@ -40,7 +41,7 @@ class ListingProject():
     
     
     def store_listings(self, delay_between_listings: float = 0, delay_between_pages: float = 1, 
-                      skip_errors: bool = True, **search_params) -> dict:
+                      skip_errors: bool = True, **search_params: Any) -> Dict[str, int]:
         """Scrape listings and store via ListingService
         
         Args:
@@ -94,7 +95,11 @@ class ListingProject():
             soup = BeautifulSoup(html, 'html.parser')
             
             # Find all listing card containers
-            listing_containers = soup.find_all('div', class_='flex flex-col md:flex-row mb-6')
+            listing_containers: List[Tag] = [ 
+               tag for tag in soup.find_all('div', class_='flex flex-col md:flex-row mb-6')
+               if isinstance(tag, Tag) 
+
+            ]
             
             # If no listings found, we've probably reached the end
             if not listing_containers:
@@ -106,13 +111,14 @@ class ListingProject():
             
             # Process listing containers
             for container in listing_containers:
+
                 # Find the listing link within this container
                 link = container.find('a', href=re.compile(r'^/listings/[^/]+$'))
-                if not link:
+                if not link or not isinstance(link, Tag):
                     continue
                     
                 href = link.get('href', '')
-                listing_id = href.split('/')[-1] if href else None
+                listing_id = str(href).split('/')[-1] if href else None
                 
                 if not listing_id:
                     continue
@@ -121,6 +127,7 @@ class ListingProject():
                 
                 # Check if listing already exists in database (deduplication)
                 with get_db_session() as db:
+                    db: Session
                     existing_listing = db.query(Listing).filter(Listing.id == listing_id).first()
                     if existing_listing:
                         print(f"Skipping duplicate listing: {listing_id}")
@@ -160,6 +167,7 @@ class ListingProject():
                         # Store directly to database
                         try:
                             with get_db_session() as db:
+                                db: Session
                                 db.add(listing)
                                 db.commit()
                                 page_new_count += 1
@@ -189,7 +197,7 @@ class ListingProject():
         print(f"Scraping complete. Stats: {stats}")
         return stats
     
-    def _extract_listing_data(self, listing_element) -> dict:
+    def _extract_listing_data(self, listing_element: Any) -> Optional[Dict[str, Any]]:
         """Extract data from a listing card element (the <a> tag containing all card info)"""
         try:
             # Extract title from h4 tag
@@ -227,14 +235,16 @@ class ListingProject():
             print(f"Error extracting listing data: {e}")
             return None
     
-    def _extract_neighborhood_form_element(self, element) -> str:
+    def _extract_neighborhood_form_element(self, element: Any) -> str:
         """Extract neigboorhood information from element"""
         elem = element.select_one('div.text-grey-dark.font-semibold.text-smish')
+        if elem is None:
+            return ''
         text = elem.get_text(strip=True).split('|')[0]
         return ''.join(text.split())
 
     
-    def _extract_price_from_element(self, element) -> tuple:
+    def _extract_price_from_element(self, element: Any) -> tuple[Optional[float], Optional[Any]]:
         """Extract price from specific elements in the listing card"""
         # Look for text containing $ symbol in any element
         for text_elem in element.find_all(string=re.compile(r'\$')):
@@ -262,7 +272,7 @@ class ListingProject():
         
         return None, None
     
-    def _extract_dates_from_element(self, element) -> tuple:
+    def _extract_dates_from_element(self, element: Any) -> tuple[Optional[Any], Optional[Any]]:
         """Extract dates from the specific date span element"""
         from dateutil import parser
         
@@ -292,10 +302,10 @@ class ListingProject():
         neighborhood = title.split('|')[0].strip()
         return neighborhood if neighborhood else None
     
-    def _extract_brief_description(self, element, title, full_text) -> str:
+    def _extract_brief_description(self, element: Any, title: Optional[str], full_text: str) -> Optional[str]:
         """Extract brief description from listing card"""
         # Get all text strings from the element
-        text_parts = []
+        text_parts: list[str] = []
         
         for text in element.stripped_strings:
             text = text.strip()
@@ -352,7 +362,7 @@ class ListingProject():
             # Already monthly
             return price
     
-    def _fetch_and_extract_details(self, listing_url: str) -> dict:
+    def _fetch_and_extract_details(self, listing_url: str) -> Dict[str, Any]:
         """Fetch individual listing page and extract detailed information"""
         try:
             print(f"Fetching details from: {listing_url}")
@@ -367,9 +377,9 @@ class ListingProject():
             div = soup.find('div', class_='text-grey-darkest')          
 
             # Extract full description using html_to_clean_text for LLM processing
-            full_description = div.getText(" ", strip=True)
+            full_description = div.getText(" ", strip=True) if div else ''
 
-            divs = soup.find_all('div', class_='mb-2')
+            # divs = soup.find_all('div', class_='mb-2')  # Unused variable removed
 
             name = None
             email = None
@@ -416,15 +426,20 @@ class ListingProject():
             soup = BeautifulSoup(response.text, 'html.parser')
             token_input = soup.find('input', {'name': 'authenticity_token'})
             
-            if not token_input:
+            if not token_input or not isinstance(token_input, Tag):
                 print("Could not find authenticity token on login page")
                 return False
             
-            authenticity_token = token_input.get('value')
+            authenticity_token = token_input.get('value') 
+            if isinstance(authenticity_token, list):
+                authenticity_token = authenticity_token[0] if authenticity_token else ''
+            elif authenticity_token is None:
+                authenticity_token = ''
+
             print(f"Extracted authenticity token: {authenticity_token[:20]}...")
             
             # Step 2: Submit login credentials
-            login_data = {
+            login_data: Dict[str, str] = {
                 'authenticity_token': authenticity_token,
                 'user_session[email]': email,
                 'user_session[wants_to]': 'signin',

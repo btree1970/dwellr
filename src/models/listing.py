@@ -1,6 +1,8 @@
-from typing import Optional, Any
+from typing import Optional
 from enum import Enum
-from sqlalchemy import Column, String, Float, DateTime, Boolean, Enum as SQLEnum
+from datetime import datetime
+from sqlalchemy import String, Float, DateTime, Boolean, Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
 from src.database.db import Base
 
 class ListingType(Enum):
@@ -15,22 +17,22 @@ class PricePeriod(Enum):
 class Listing(Base):  
     __tablename__ = "listings"
     
-    id = Column(String, primary_key=True)
-    url = Column(String, nullable=False)
-    title = Column(String, nullable=False)
-    price = Column(Float, nullable=True)
-    price_period = Column(SQLEnum(PricePeriod), nullable=True)
-    start_date = Column(DateTime, nullable=True)
-    end_date = Column(DateTime, nullable=True)
-    neighborhood = Column(String, nullable=True)
-    brief_description = Column(String, nullable=True)
-    full_description = Column(String, nullable=True)
-    contact_name = Column(String, nullable=True)
-    contact_email = Column(String, nullable=True)
-    source_site = Column(String, nullable=False, default="")
-    listing_type = Column(SQLEnum(ListingType), nullable=False, default=ListingType.SUBLET)
-    detail_fetched = Column(Boolean, nullable=False, default=False)
-    scraped_at = Column(DateTime, nullable=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    url: Mapped[str] = mapped_column(String)
+    title: Mapped[str] = mapped_column(String)
+    price: Mapped[Optional[float]] = mapped_column(Float)
+    price_period: Mapped[Optional[PricePeriod]] = mapped_column(SQLEnum(PricePeriod))
+    start_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    end_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    neighborhood: Mapped[Optional[str]] = mapped_column(String)
+    brief_description: Mapped[Optional[str]] = mapped_column(String)
+    full_description: Mapped[Optional[str]] = mapped_column(String)
+    contact_name: Mapped[Optional[str]] = mapped_column(String)
+    contact_email: Mapped[Optional[str]] = mapped_column(String)
+    source_site: Mapped[str] = mapped_column(String, default="")
+    listing_type: Mapped[ListingType] = mapped_column(SQLEnum(ListingType), default=ListingType.SUBLET)
+    detail_fetched: Mapped[bool] = mapped_column(Boolean, default=False)
+    scraped_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     
     
     def __repr__(self):

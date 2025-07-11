@@ -19,7 +19,6 @@ def create_equivalent_price_test_listings():
             start_date=datetime(2025, 8, 1),
             end_date=datetime(2025, 9, 1),
             listing_type=ListingType.SUBLET,
-            scraped_at=datetime.utcnow(),
         ),
         Listing(
             id="equiv_weekly_1",
@@ -30,7 +29,6 @@ def create_equivalent_price_test_listings():
             start_date=datetime(2025, 8, 1),
             end_date=datetime(2025, 9, 1),
             listing_type=ListingType.SUBLET,
-            scraped_at=datetime.utcnow(),
         ),
         Listing(
             id="equiv_monthly_1",
@@ -41,7 +39,6 @@ def create_equivalent_price_test_listings():
             start_date=datetime(2025, 8, 1),
             end_date=datetime(2025, 9, 1),
             listing_type=ListingType.SUBLET,
-            scraped_at=datetime.utcnow(),
         ),
         # Equivalent set 2: $100/day = $700/week = $3000/month
         Listing(
@@ -53,7 +50,6 @@ def create_equivalent_price_test_listings():
             start_date=datetime(2025, 8, 1),
             end_date=datetime(2025, 9, 1),
             listing_type=ListingType.SUBLET,
-            scraped_at=datetime.utcnow(),
         ),
         Listing(
             id="equiv_weekly_2",
@@ -64,7 +60,6 @@ def create_equivalent_price_test_listings():
             start_date=datetime(2025, 8, 1),
             end_date=datetime(2025, 9, 1),
             listing_type=ListingType.SUBLET,
-            scraped_at=datetime.utcnow(),
         ),
         Listing(
             id="equiv_monthly_2",
@@ -75,7 +70,6 @@ def create_equivalent_price_test_listings():
             start_date=datetime(2025, 8, 1),
             end_date=datetime(2025, 9, 1),
             listing_type=ListingType.SUBLET,
-            scraped_at=datetime.utcnow(),
         ),
         # Expensive option: $200/day = $1400/week = $6000/month
         Listing(
@@ -87,7 +81,6 @@ def create_equivalent_price_test_listings():
             start_date=datetime(2025, 8, 1),
             end_date=datetime(2025, 9, 1),
             listing_type=ListingType.SUBLET,
-            scraped_at=datetime.utcnow(),
         ),
     ]
 
@@ -163,7 +156,6 @@ def create_simple_listing(
         start_date=datetime(2025, 8, 1),
         end_date=datetime(2025, 9, 1),
         listing_type=ListingType.SUBLET,
-        scraped_at=datetime.utcnow(),
     )
 
 

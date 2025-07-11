@@ -1,10 +1,9 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
 
 from src.database.db import Base
 
@@ -33,7 +32,9 @@ class ListingEvaluation(Base):
     model_used: Mapped[str] = mapped_column(String)
 
     # Timestamps
-    evaluated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
 
     def __repr__(self):
         return f"<ListingEvaluation(id='{self.id}', user_id='{self.user_id}', listing_id='{self.listing_id}', score={self.score})>"

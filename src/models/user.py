@@ -1,11 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from sqlalchemy import JSON, DateTime, Float, Integer, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
 
 from src.database.db import Base
 from src.models.listing import ListingType, PricePeriod
@@ -42,9 +41,13 @@ class User(Base):
     preference_version: Mapped[int] = mapped_column(Integer, default=1)
     last_preference_update: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=func.now(), onupdate=func.now()
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     def __repr__(self):

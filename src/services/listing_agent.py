@@ -286,7 +286,7 @@ class ListingAgent:
             )
 
         # Order by most recent and limit
-        query = query.order_by(Listing.scraped_at.desc()).limit(limit)
+        query = query.order_by(Listing.created_at.desc()).limit(limit)
 
         return query.all()
 

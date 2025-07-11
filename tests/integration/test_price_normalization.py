@@ -210,7 +210,6 @@ class TestDateFlexibilityIntegration:
                 ),  # 4 days before user's preferred start
                 end_date=datetime(2025, 8, 28),
                 listing_type=ListingType.SUBLET,
-                scraped_at=datetime.utcnow(),
             )
 
             db.add(flexible_listing)
@@ -259,7 +258,6 @@ class TestEdgeCases:
                 start_date=datetime(2025, 8, 1),
                 end_date=datetime(2025, 9, 1),
                 listing_type=ListingType.SUBLET,
-                scraped_at=datetime.utcnow(),
             )
 
             db.add(restrictive_user)
@@ -299,7 +297,6 @@ class TestEdgeCases:
                 start_date=datetime(2025, 8, 1),
                 end_date=datetime(2025, 8, 2),
                 listing_type=ListingType.SUBLET,
-                scraped_at=datetime.utcnow(),
             )
 
             db.add(single_day_user)

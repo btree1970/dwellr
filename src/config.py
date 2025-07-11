@@ -47,10 +47,31 @@ class Settings(BaseSettings):
         default="development", description="Environment (development, test, production)"
     )
 
+    # Redis/Celery settings
+    redis_url: str = Field(
+        default="redis://localhost:6379/0", description="Redis URL for Celery"
+    )
+    celery_broker_url: Optional[str] = Field(
+        default=None, description="Celery broker URL (defaults to redis_url)"
+    )
+    celery_result_backend: Optional[str] = Field(
+        default=None, description="Celery result backend (defaults to redis_url)"
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env.test" if os.getenv("ENV") == "test" else ".env",
         env_file_encoding="utf-8",
     )
+
+    @property
+    def effective_celery_broker_url(self) -> str:
+        """Get effective Celery broker URL (falls back to redis_url)"""
+        return self.celery_broker_url or self.redis_url
+
+    @property
+    def effective_celery_result_backend(self) -> str:
+        """Get effective Celery result backend URL (falls back to redis_url)"""
+        return self.celery_result_backend or self.redis_url
 
 
 # Global settings instance

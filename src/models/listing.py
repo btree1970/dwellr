@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -40,7 +40,9 @@ class Listing(Base):
         SQLEnum(ListingType), default=ListingType.SUBLET
     )
     detail_fetched: Mapped[bool] = mapped_column(Boolean, default=False)
-    scraped_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
 
     def __repr__(self):
         return f"<Listing(id='{self.id}', title='{self.title}', price={self.price}, price_period={self.price_period}, start_date={self.start_date}, end_date={self.end_date})>"

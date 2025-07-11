@@ -1,5 +1,3 @@
-"""Unit tests for User model methods"""
-
 from datetime import datetime
 
 import pytest

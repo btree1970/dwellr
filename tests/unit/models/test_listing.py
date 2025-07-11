@@ -1,5 +1,3 @@
-"""Unit tests for Listing model methods"""
-
 import pytest
 
 from src.models.listing import Listing, PricePeriod

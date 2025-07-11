@@ -1,5 +1,3 @@
-"""Integration tests for price normalization and filtering"""
-
 from datetime import datetime
 
 from src.database.db import get_db_session

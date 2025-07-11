@@ -1,5 +1,3 @@
-"""Basic Celery application setup"""
-
 from celery import Celery
 
 from src.config import settings

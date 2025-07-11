@@ -1,5 +1,3 @@
-"""Reusable test data for price normalization and date flexibility tests"""
-
 from datetime import datetime
 
 from src.models.listing import Listing, ListingType, PricePeriod

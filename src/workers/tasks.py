@@ -1,5 +1,3 @@
-"""Basic task definitions"""
-
 from datetime import datetime, timezone
 from typing import Any, Dict
 

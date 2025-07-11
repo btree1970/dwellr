@@ -1,5 +1,3 @@
-"""Job type definitions"""
-
 from enum import Enum
 
 

@@ -21,6 +21,7 @@ dependencies = [
 dev = [
     "black>=25.1.0",
     "mypy>=1.16.1",
+    "pre-commit>=4.0.0",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "ruff>=0.12.0",
@@ -28,6 +29,8 @@ dev = [
 
 [tool.ruff]
 line-length = 88
+
+[tool.ruff.lint]
 select = ["E", "F", "I"]
 ignore = ["E501"]
 

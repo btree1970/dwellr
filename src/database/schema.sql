@@ -6,32 +6,32 @@ CREATE TABLE IF NOT EXISTS listings (
     id TEXT PRIMARY KEY,
     url TEXT NOT NULL,
     title TEXT NOT NULL,
-    
+
     -- Pricing information
     price REAL,
     price_period TEXT,
-    
+
     -- Date information
     start_date TEXT,  -- ISO format datetime
     end_date TEXT,    -- ISO format datetime
-    
+
     -- Location
     neighborhood TEXT,
-    
+
     -- Content
     brief_description TEXT,
     full_description TEXT,
-    
+
     -- Contact information (if available after authentication)
     contact_name TEXT,
     contact_email TEXT,
-    
-    
+
+
     -- Metadata
     source_site TEXT NOT NULL,
     listing_type TEXT NOT NULL,
     scraped_at TEXT NOT NULL,  -- ISO format datetime
-    
+
     -- Indexes for common queries
     UNIQUE(id)
 );
@@ -40,44 +40,44 @@ CREATE TABLE IF NOT EXISTS listings (
 CREATE TABLE IF NOT EXISTS communications (
     -- Primary key
     id TEXT PRIMARY KEY,
-    
+
     -- Foreign key to listings
     listing_id TEXT NOT NULL,
-    
+
     -- Communication type and status
     communication_type TEXT NOT NULL, -- 'email', 'sms', 'call', 'whatsapp'
     status TEXT NOT NULL, -- 'pending', 'sent', 'failed', 'delivered', 'replied'
-    
+
     -- Content
     subject TEXT,
     body TEXT,
-    
+
     -- Recipient information
     to_email TEXT,
     to_phone TEXT,
     to_name TEXT,
-    
+
     -- Sender information
     from_email TEXT,
     from_phone TEXT,
     from_name TEXT,
-    
+
     -- Tracking timestamps
     generated_at TEXT NOT NULL,  -- ISO format datetime when content was generated
     sent_at TEXT,                -- ISO format datetime when actually sent
     delivered_at TEXT,           -- ISO format datetime when delivered (if supported)
     response_received_at TEXT,   -- ISO format datetime when response received
-    
+
     -- Attempt tracking
     attempts INTEGER DEFAULT 0,
     last_attempt_at TEXT,
-    
+
     -- Error handling
     error_message TEXT,
-    
+
     -- Foreign key constraint
     FOREIGN KEY (listing_id) REFERENCES listings (id),
-    
+
     -- Indexes for common queries
     UNIQUE(id)
 );

@@ -2,16 +2,20 @@
 
 import os
 import sys
+
 import pytest
 
 # Set test environment before any imports
-os.environ['ENV'] = 'test'
+os.environ["ENV"] = "test"
 
 # Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.database.db import DatabaseManager, get_db_session
-from tests.fixtures.test_data import create_equivalent_price_test_listings, create_test_users
+from tests.fixtures.test_data import (
+    create_equivalent_price_test_listings,
+    create_test_users,
+)
 
 
 @pytest.fixture(scope="function")
@@ -29,14 +33,14 @@ def db_with_test_data(clean_database):
     """Provide database with standard test data loaded"""
     listings = create_equivalent_price_test_listings()
     users = create_test_users()
-    
+
     with get_db_session() as db:
         for listing in listings:
             db.add(listing)
         for user in users:
             db.add(user)
         db.commit()
-    
+
     yield db
 
 

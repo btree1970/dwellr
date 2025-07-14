@@ -4,23 +4,64 @@ from typing import Any, Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup, Tag
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from src.crawlers.listing_project_params import ListingProjectSearchParams
+from src.crawlers.base_crawler import BaseCrawler, CrawlResult
 from src.database.db import get_db_session
 from src.models.listing import Listing, ListingType, PricePeriod
 
 
-class ListingProject:
+class ListingProjectCrawlerConfig(BaseModel):
+    # Credentials
+    email: Optional[str] = Field(default=None, description="Email for authentication")
+    password: Optional[str] = Field(
+        default=None, description="Password for authentication"
+    )
+
+    # Crawling parameters
+    supported_cities: List[str] = Field(
+        default=["new-york-city"],
+        description="List of city slugs to crawl (e.g., ['new-york-city', 'san-francisco'])",
+    )
+    listing_type: ListingType = Field(
+        default=ListingType.SUBLET, description="Type of listing to search for"
+    )
+    max_pages: int = Field(
+        default=5, ge=1, le=100, description="Maximum number of pages to scrape"
+    )
+    delay_between_pages: float = Field(
+        default=1.0, ge=0, le=10, description="Seconds to wait between page fetches"
+    )
+    delay_between_listings: float = Field(
+        default=0,
+        ge=0,
+        le=10,
+        description="Seconds to wait between processing listings",
+    )
+    skip_errors: bool = Field(
+        default=True, description="Continue if individual listing extraction fails"
+    )
+
+    # Optional pagination override
+    page: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Specific page number for pagination (overrides max_pages)",
+    )
+
+
+class ListingProject(BaseCrawler):
     """Scraper for Listing Project website"""
 
     BASE_URL = "https://www.listingsproject.com"
 
-    def __init__(self, email: str | None, password: str | None):
+    def __init__(self, config: ListingProjectCrawlerConfig):
         self.session = requests.Session()
         self.authenticated = False
 
-        # Set default headers
+        self.config = config
+
         self.session.headers.update(
             {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -33,28 +74,48 @@ class ListingProject:
         )
 
         # Authenticate if credentials provided
-        if email and password:
-            self.authenticated = self._login(email, password)
+        if self.config.email and self.config.password:
+            self.authenticated = self._login(self.config.email, self.config.password)
 
-    @property
-    def source_name(self) -> str:
-        return "listing_project"
+    @classmethod
+    def from_config(cls, config: Dict[str, Any]) -> "ListingProject":
+        """
+        Create ListingProject crawler from complete configuration dictionary
+
+        Args:
+            config: Complete configuration dictionary containing:
+                - credentials: Dict with 'email' and 'password' keys
+                - All crawling parameters (city, max_pages, delays, etc.)
+                - Any other configuration
+
+        Returns:
+            Fully configured ListingProject instance ready to crawl
+        """
+        credentials = config.get("credentials", {})
+
+        # Create typed config object from dictionary
+        typed_config = ListingProjectCrawlerConfig(
+            email=credentials.get("email"),
+            password=credentials.get("password"),
+            supported_cities=config.get("supported_cities", ["new-york-city"]),
+            listing_type=config.get("listing_type", ListingType.SUBLET),
+            max_pages=config.get("max_pages", 5),
+            delay_between_pages=config.get("delay_between_pages", 1.0),
+            delay_between_listings=config.get("delay_between_listings", 0),
+            skip_errors=config.get("skip_errors", True),
+            page=config.get("page"),
+        )
+
+        return cls(config=typed_config)
 
     def store_listings(
         self,
-        delay_between_listings: float = 0,
-        delay_between_pages: float = 1,
-        skip_errors: bool = True,
-        **search_params: Any,
+        city: str,
     ) -> Dict[str, int]:
         """Scrape listings and store via ListingService
 
         Args:
-            delay_between_listings: Seconds to wait between processing listings (default: 0)
-            delay_between_pages: Seconds to wait between page fetches (default: 1)
-            skip_errors: Continue if individual listing extraction fails (default: True)
-            **search_params: Search parameters for ListingProjectSearchParams
-
+            city: A city to get listings of
         Returns:
             Dictionary with scraping statistics
         """
@@ -67,8 +128,8 @@ class ListingProject:
             "pages_processed": 0,
         }
 
-        # Parse search parameters
-        params = ListingProjectSearchParams(**search_params)
+        # Use configuration from stored typed config
+        params = self.config
 
         # If specific page requested, just fetch that page
         if params.page:
@@ -82,7 +143,8 @@ class ListingProject:
             listing_type_url = (
                 "sublets" if params.listing_type == ListingType.SUBLET else "rentals"
             )
-            url = f"{self.BASE_URL}/real-estate/{params.city}/{listing_type_url}"
+            url = f"{self.BASE_URL}/real-estate/{city}/{listing_type_url}"
+            print(url)
             if page_num > 1:
                 url += f"?page={page_num}"
 
@@ -171,7 +233,7 @@ class ListingProject:
                             contact_name=listing_data.get("name"),
                             contact_email=listing_data.get("email"),
                             listing_type=ListingType.SUBLET,
-                            source_site=self.source_name,
+                            source_site=self.get_source_name(),
                         )
 
                         # Store directly to database
@@ -188,13 +250,13 @@ class ListingProject:
                             stats["errors"] += 1
 
                         # Rate limiting between listings
-                        if delay_between_listings > 0:
-                            time.sleep(delay_between_listings)
+                        if self.config.delay_between_listings > 0:
+                            time.sleep(self.config.delay_between_listings)
 
                 except Exception as e:
                     print(f"Error processing listing {listing_id}: {e}")
                     stats["errors"] += 1
-                    if not skip_errors:
+                    if not self.config.skip_errors:
                         raise
                     # Continue to next listing if skip_errors is True
 
@@ -203,8 +265,8 @@ class ListingProject:
             )
 
             # Rate limiting between pages (except for the last page)
-            if page_num < max(pages_to_fetch) and delay_between_pages > 0:
-                time.sleep(delay_between_pages)
+            if page_num < max(pages_to_fetch) and self.config.delay_between_pages > 0:
+                time.sleep(self.config.delay_between_pages)
 
         print(f"Scraping complete. Stats: {stats}")
         return stats
@@ -316,14 +378,6 @@ class ListingProject:
 
         return None, None
 
-    def _extract_neighborhood_from_title(self, title: str) -> Optional[str]:
-        """Extract neighborhood from title - text before |"""
-        if not title or "|" not in title:
-            return None
-
-        neighborhood = title.split("|")[0].strip()
-        return neighborhood if neighborhood else None
-
     def _extract_brief_description(
         self, element: Any, title: Optional[str], full_text: str
     ) -> Optional[str]:
@@ -363,31 +417,6 @@ class ListingProject:
 
         return description if description and len(description) > 20 else None
 
-    def _normalize_price_to_monthly(
-        self, price: Optional[float], price_period: Optional[str]
-    ) -> Optional[float]:
-        """Convert price to monthly equivalent for filtering
-
-        Args:
-            price: The original price
-            price_period: The period (day, week, month)
-
-        Returns:
-            Monthly equivalent price
-        """
-        if not price or not price_period:
-            return price
-
-        period = price_period.lower()
-
-        if period in ["day", "night"]:
-            return price * 30  # Approximate monthly conversion
-        elif period in ["week", "wk"]:
-            return price * 4.33  # Average weeks per month
-        else:
-            # Already monthly
-            return price
-
     def _fetch_and_extract_details(self, listing_url: str) -> Dict[str, Any]:
         """Fetch individual listing page and extract detailed information"""
         try:
@@ -405,8 +434,6 @@ class ListingProject:
             # Extract full description using html_to_clean_text for LLM processing
             full_description = div.getText(" ", strip=True) if div else ""
 
-            # divs = soup.find_all('div', class_='mb-2')  # Unused variable removed
-
             name = None
             email = None
 
@@ -420,8 +447,6 @@ class ListingProject:
             if email_link:
                 email = email_link.get_text(strip=True)
 
-            # Extract any additional details that might be on the page
-            # For now, we'll just get the cleaned full content
             return {
                 "full_description": full_description,
                 "detail_fetched": True,
@@ -487,3 +512,53 @@ class ListingProject:
         except Exception as e:
             print(f"Login error: {e}")
             return False
+
+    def crawl(self) -> CrawlResult:
+        try:
+            total_stats = {
+                "total_processed": 0,
+                "new_listings": 0,
+                "duplicates_skipped": 0,
+                "errors": 0,
+                "pages_processed": 0,
+            }
+
+            for city in self.config.supported_cities:
+                city_stats = self.store_listings(
+                    city=city,
+                )
+
+                for key in total_stats:
+                    total_stats[key] += city_stats.get(key, 0)
+
+                print(
+                    f"Completed crawl for {city}: {city_stats.get('new_listings', 0)} new listings"
+                )
+
+            stats = total_stats
+
+            return CrawlResult(
+                source=self.get_source_name(),
+                total_processed=stats.get("total_processed", 0),
+                new_listings=stats.get("new_listings", 0),
+                duplicates_skipped=stats.get("duplicates_skipped", 0),
+                errors=stats.get("errors", 0),
+                pages_processed=stats.get("pages_processed", 0),
+                success=stats.get("errors", 0) == 0,
+                error_message=None,
+            )
+
+        except Exception as e:
+            return CrawlResult(
+                source=self.get_source_name(),
+                total_processed=0,
+                new_listings=0,
+                duplicates_skipped=0,
+                errors=1,
+                pages_processed=0,
+                success=False,
+                error_message=str(e),
+            )
+
+    def get_source_name(self) -> str:
+        return "listing_project"

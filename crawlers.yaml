@@ -1,0 +1,20 @@
+# Crawler Configuration
+# This file defines crawler credentials and default parameters.
+
+crawlers:
+  listing_project:
+    # Credentials configuration
+    credentials:
+      email_env_var: "LISTINGS_EMAIL"
+      password_env_var: "LISTINGS_PASSWORD"
+
+    # Default crawling parameters
+    defaults:
+      supported_cities:
+        - "new-york-city"
+        # - "boston"
+      max_pages: 5
+      delay_between_pages: 1.0
+      delay_between_listings: 0
+      skip_errors: true
+      listing_type: "sublet"

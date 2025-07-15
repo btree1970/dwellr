@@ -1,8 +1,8 @@
 # Ingestor Configuration
-# This file defines ingestor credentials and default parameters.
 
 ingestors:
   listing_project:
+
     # Credentials configuration
     credentials:
       email_env_var: "LISTINGS_EMAIL"

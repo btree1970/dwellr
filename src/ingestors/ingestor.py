@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class Ingestor:
-
     def __init__(self, config_file: str = "ingestors.yaml"):
         self._ingestors: Dict[str, Type[BaseIngestor]] = {}
         self._config_file = config_file

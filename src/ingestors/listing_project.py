@@ -19,19 +19,17 @@ class ListingProjectIngestorConfig(BaseModel):
         default=None, description="Password for authentication"
     )
 
-    # Sync parameters
     supported_cities: List[str] = Field(
-        default=["new-york-city"],
         description="List of city slugs to sync (e.g., ['new-york-city', 'san-francisco'])",
     )
     listing_type: ListingType = Field(
-        default=ListingType.SUBLET, description="Type of listing to search for"
+        description="Type of listing to search for"
     )
     max_pages: int = Field(
-        default=5, ge=1, le=100, description="Maximum number of pages to scrape"
+          ge=1, le=100, description="Maximum number of pages to scrape"
     )
     delay_between_pages: float = Field(
-        default=1.0, ge=0, le=10, description="Seconds to wait between page fetches"
+        ge=0, le=10, description="Seconds to wait between page fetches"
     )
     delay_between_listings: float = Field(
         default=0,
@@ -43,7 +41,6 @@ class ListingProjectIngestorConfig(BaseModel):
         default=True, description="Continue if individual listing extraction fails"
     )
 
-    # Optional pagination override
     page: Optional[int] = Field(
         default=None,
         ge=1,
@@ -93,25 +90,23 @@ class ListingProjectIngestor(BaseIngestor):
         """
         credentials = config.get("credentials", {})
 
-
         try:
             credentials = config.get("credentials", {})
-            
-            # Flatten credentials into main config for validation
+
             flattened_config = {**config}
-            flattened_config.update({
-                "email": credentials.get("email"),
-                "password": credentials.get("password")
-            })
-            
+            flattened_config.update(
+                {
+                    "email": credentials.get("email"),
+                    "password": credentials.get("password"),
+                }
+            )
+
             typed_config = ListingProjectIngestorConfig(**flattened_config)
-        
+
         except TypeError as e:
             raise ValueError(f"Invalid configuration: {e}")
-    
+
         return cls(config=typed_config)
-
-
 
     def store_listings(
         self,

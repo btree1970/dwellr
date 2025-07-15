@@ -13,7 +13,7 @@ ingestors:
       supported_cities:
         - "new-york-city"
         # - "boston"
-      max_pages: 5
+      max_pages: 1
       delay_between_pages: 1.0
       delay_between_listings: 0
       skip_errors: true

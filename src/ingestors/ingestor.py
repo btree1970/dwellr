@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class Ingestor:
-    """Central registry and factory for ingestor sources"""
 
     def __init__(self, config_file: str = "ingestors.yaml"):
         self._ingestors: Dict[str, Type[BaseIngestor]] = {}
@@ -23,7 +22,6 @@ class Ingestor:
         self._register_ingestors()
 
     def _load_ingestor_configs(self):
-        """Load ingestor configurations from YAML file"""
         try:
             # Look for config file in project root
             config_path = self._config_file

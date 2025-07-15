@@ -93,20 +93,25 @@ class ListingProjectIngestor(BaseIngestor):
         """
         credentials = config.get("credentials", {})
 
-        # Create typed config object from dictionary
-        typed_config = ListingProjectIngestorConfig(
-            email=credentials.get("email"),
-            password=credentials.get("password"),
-            supported_cities=config.get("supported_cities", ["new-york-city"]),
-            listing_type=config.get("listing_type", ListingType.SUBLET),
-            max_pages=config.get("max_pages", 5),
-            delay_between_pages=config.get("delay_between_pages", 1.0),
-            delay_between_listings=config.get("delay_between_listings", 0),
-            skip_errors=config.get("skip_errors", True),
-            page=config.get("page"),
-        )
 
+        try:
+            credentials = config.get("credentials", {})
+            
+            # Flatten credentials into main config for validation
+            flattened_config = {**config}
+            flattened_config.update({
+                "email": credentials.get("email"),
+                "password": credentials.get("password")
+            })
+            
+            typed_config = ListingProjectIngestorConfig(**flattened_config)
+        
+        except TypeError as e:
+            raise ValueError(f"Invalid configuration: {e}")
+    
         return cls(config=typed_config)
+
+
 
     def store_listings(
         self,

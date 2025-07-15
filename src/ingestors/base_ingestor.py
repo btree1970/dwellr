@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 
 @dataclass
-class CrawlResult:
+class SyncResult:
     source: str
     total_processed: int
     new_listings: int
@@ -15,23 +15,23 @@ class CrawlResult:
     error_message: Optional[str] = None
 
 
-class BaseCrawler(ABC):
-    """Abstract base class for all listing crawlers"""
+class BaseIngestor(ABC):
+    """Abstract base class for all listing ingestors"""
 
     @classmethod
     @abstractmethod
-    def from_config(cls, config: Dict[str, Any]) -> "BaseCrawler":
+    def from_config(cls, config: Dict[str, Any]) -> "BaseIngestor":
         """
-        Create crawler instance from complete configuration dictionary
+        Create ingestor instance from complete configuration dictionary
 
         Args:
             config: Complete configuration dictionary containing:
                 - credentials: Resolved credential values (not env var names)
-                - All crawling parameters (city, max_pages, delays, etc.)
-                - Any other crawler-specific configuration
+                - All ingestor parameters (city, max_pages, delays, etc.)
+                - Any other ingestor-specific configuration
 
         Returns:
-            Fully configured crawler instance ready to crawl
+            Fully configured ingestor instance ready to sync
 
         Raises:
             ValueError: If required configuration is missing or invalid
@@ -39,22 +39,22 @@ class BaseCrawler(ABC):
         pass
 
     @abstractmethod
-    def crawl(self) -> CrawlResult:
+    def sync(self) -> SyncResult:
         """
-        Execute crawling using the configuration provided at creation time
+        Execute syncing using the configuration provided at creation time
 
         Returns:
-            CrawlResult with standardized statistics
+            SyncResult with standardized statistics
 
         Raises:
-            Exception: For crawler-specific errors
+            Exception: For ingestor-specific errors
         """
         pass
 
     @abstractmethod
     def get_source_name(self) -> str:
         """
-        Get the unique identifier for this crawler source
+        Get the unique identifier for this ingestor source
 
         Returns:
             String identifier (e.g., 'listing_project', 'streeteasy')

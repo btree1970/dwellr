@@ -7,22 +7,22 @@ from bs4 import BeautifulSoup, Tag
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from src.crawlers.base_crawler import BaseCrawler, CrawlResult
 from src.database.db import get_db_session
+from src.ingestors.base_ingestor import BaseIngestor, SyncResult
 from src.models.listing import Listing, ListingType, PricePeriod
 
 
-class ListingProjectCrawlerConfig(BaseModel):
+class ListingProjectIngestorConfig(BaseModel):
     # Credentials
     email: Optional[str] = Field(default=None, description="Email for authentication")
     password: Optional[str] = Field(
         default=None, description="Password for authentication"
     )
 
-    # Crawling parameters
+    # Sync parameters
     supported_cities: List[str] = Field(
         default=["new-york-city"],
-        description="List of city slugs to crawl (e.g., ['new-york-city', 'san-francisco'])",
+        description="List of city slugs to sync (e.g., ['new-york-city', 'san-francisco'])",
     )
     listing_type: ListingType = Field(
         default=ListingType.SUBLET, description="Type of listing to search for"
@@ -51,12 +51,12 @@ class ListingProjectCrawlerConfig(BaseModel):
     )
 
 
-class ListingProject(BaseCrawler):
-    """Scraper for Listing Project website"""
+class ListingProjectIngestor(BaseIngestor):
+    """Ingestor for Listing Project website"""
 
     BASE_URL = "https://www.listingsproject.com"
 
-    def __init__(self, config: ListingProjectCrawlerConfig):
+    def __init__(self, config: ListingProjectIngestorConfig):
         self.session = requests.Session()
         self.authenticated = False
 
@@ -78,23 +78,23 @@ class ListingProject(BaseCrawler):
             self.authenticated = self._login(self.config.email, self.config.password)
 
     @classmethod
-    def from_config(cls, config: Dict[str, Any]) -> "ListingProject":
+    def from_config(cls, config: Dict[str, Any]) -> "ListingProjectIngestor":
         """
-        Create ListingProject crawler from complete configuration dictionary
+        Create ListingProjectIngestor from complete configuration dictionary
 
         Args:
             config: Complete configuration dictionary containing:
                 - credentials: Dict with 'email' and 'password' keys
-                - All crawling parameters (city, max_pages, delays, etc.)
+                - All ingestor parameters (city, max_pages, delays, etc.)
                 - Any other configuration
 
         Returns:
-            Fully configured ListingProject instance ready to crawl
+            Fully configured ListingProjectIngestor instance ready to sync
         """
         credentials = config.get("credentials", {})
 
         # Create typed config object from dictionary
-        typed_config = ListingProjectCrawlerConfig(
+        typed_config = ListingProjectIngestorConfig(
             email=credentials.get("email"),
             password=credentials.get("password"),
             supported_cities=config.get("supported_cities", ["new-york-city"]),
@@ -513,7 +513,7 @@ class ListingProject(BaseCrawler):
             print(f"Login error: {e}")
             return False
 
-    def crawl(self) -> CrawlResult:
+    def sync(self) -> SyncResult:
         try:
             total_stats = {
                 "total_processed": 0,
@@ -524,6 +524,7 @@ class ListingProject(BaseCrawler):
             }
 
             for city in self.config.supported_cities:
+                print(f"Starting sync for city: {city}")
                 city_stats = self.store_listings(
                     city=city,
                 )
@@ -532,12 +533,12 @@ class ListingProject(BaseCrawler):
                     total_stats[key] += city_stats.get(key, 0)
 
                 print(
-                    f"Completed crawl for {city}: {city_stats.get('new_listings', 0)} new listings"
+                    f"Completed sync for {city}: {city_stats.get('new_listings', 0)} new listings"
                 )
 
             stats = total_stats
 
-            return CrawlResult(
+            return SyncResult(
                 source=self.get_source_name(),
                 total_processed=stats.get("total_processed", 0),
                 new_listings=stats.get("new_listings", 0),
@@ -549,7 +550,7 @@ class ListingProject(BaseCrawler):
             )
 
         except Exception as e:
-            return CrawlResult(
+            return SyncResult(
                 source=self.get_source_name(),
                 total_processed=0,
                 new_listings=0,

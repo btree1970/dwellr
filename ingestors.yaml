@@ -1,14 +1,14 @@
-# Crawler Configuration
-# This file defines crawler credentials and default parameters.
+# Ingestor Configuration
+# This file defines ingestor credentials and default parameters.
 
-crawlers:
+ingestors:
   listing_project:
     # Credentials configuration
     credentials:
       email_env_var: "LISTINGS_EMAIL"
       password_env_var: "LISTINGS_PASSWORD"
 
-    # Default crawling parameters
+    # Default ingestor parameters
     defaults:
       supported_cities:
         - "new-york-city"

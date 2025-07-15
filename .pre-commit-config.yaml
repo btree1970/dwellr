@@ -18,21 +18,10 @@ repos:
 
   # Pyright type checking (only on src/ directory)
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.389
+    rev: v1.1.403
     hooks:
       - id: pyright
         files: ^src/
-        additional_dependencies:
-          - beautifulsoup4>=4.13.4
-          - html2text>=2025.4.15
-          - lxml>=5.4.0
-          - openai>=1.58.1
-          - pydantic-settings>=2.10.1
-          - pydantic>=2.11.7
-          - python-dateutil>=2.9.0.post0
-          - python-dotenv>=1.1.1
-          - requests>=2.32.4
-          - sqlalchemy>=2.0.41
 
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

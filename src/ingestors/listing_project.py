@@ -22,11 +22,9 @@ class ListingProjectIngestorConfig(BaseModel):
     supported_cities: List[str] = Field(
         description="List of city slugs to sync (e.g., ['new-york-city', 'san-francisco'])",
     )
-    listing_type: ListingType = Field(
-        description="Type of listing to search for"
-    )
+    listing_type: ListingType = Field(description="Type of listing to search for")
     max_pages: int = Field(
-          ge=1, le=100, description="Maximum number of pages to scrape"
+        ge=1, le=100, description="Maximum number of pages to scrape"
     )
     delay_between_pages: float = Field(
         ge=0, le=10, description="Seconds to wait between page fetches"

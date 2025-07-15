@@ -46,3 +46,5 @@ line-length = 88
 typeCheckingMode = "strict"
 include = ["src"]
 exclude = ["**/__pycache__", "**/migrations"]
+venvPath = "."
+venv = ".venv"

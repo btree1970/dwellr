@@ -74,5 +74,4 @@ class Settings(BaseSettings):
         return self.celery_result_backend or self.redis_url
 
 
-# Global settings instance
 settings = Settings()

@@ -1,11 +1,10 @@
-"""Central manager for all ingestor sources"""
-
 import logging
 import os
 from typing import Any, Dict, List, Optional, Type
 
 import yaml
 
+from src.config import settings
 from src.ingestors.base_ingestor import BaseIngestor, SyncResult
 from src.ingestors.listing_project import ListingProjectIngestor
 
@@ -62,7 +61,8 @@ class Ingestor:
             if cred_key.endswith("_env_var"):
                 # Remove _env_var suffix to get actual credential name
                 actual_key = cred_key[:-8]  # Remove "_env_var"
-                env_value = os.getenv(env_var_name)
+                env_value = getattr(settings, env_var_name.lower())
+
                 if env_value:
                     resolved[actual_key] = env_value
                 else:

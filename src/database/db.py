@@ -1,10 +1,8 @@
-# database.py
 import logging
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from src.config import settings
 
@@ -12,7 +10,7 @@ from src.config import settings
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 
-engine = create_engine(settings.database_url, poolclass=StaticPool, echo=False)
+engine = create_engine(settings.database_url, echo=False)
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

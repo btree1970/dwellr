@@ -13,7 +13,6 @@ from src.models.listing import Listing, ListingType, PricePeriod
 
 
 class ListingProjectIngestorConfig(BaseModel):
-    # Credentials
     email: Optional[str] = Field(default=None, description="Email for authentication")
     password: Optional[str] = Field(
         default=None, description="Password for authentication"
@@ -142,7 +141,6 @@ class ListingProjectIngestor(BaseIngestor):
                 "sublets" if params.listing_type == ListingType.SUBLET else "rentals"
             )
             url = f"{self.BASE_URL}/real-estate/{city}/{listing_type_url}"
-            print(url)
             if page_num > 1:
                 url += f"?page={page_num}"
 

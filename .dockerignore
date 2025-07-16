@@ -1,0 +1,48 @@
+# flyctl launch added from .gitignore
+# Python cache files
+**/__pycache__
+**/*.pyc
+**/*.pyo
+
+# Virtual environments
+**/venv
+**/env
+**/.venv
+
+# Environment variables
+**/.env
+
+# IDE files
+**/.vscode
+**/.idea
+
+# OS files
+**/.DS_Store
+**/Thumbs.db
+
+# Distribution files
+**/dist
+**/build
+**/*.egg-info
+
+# Jupyter notebooks
+**/.ipynb_checkpoints
+
+# Test coverage
+**/.coverage
+**/htmlcov
+
+# Logs
+**/*.log
+
+# flyctl launch added from .pytest_cache/.gitignore
+# Created by pytest automatically.
+.pytest_cache/**/*
+
+# flyctl launch added from .ruff_cache/.gitignore
+# Automatically created by ruff.
+.ruff_cache/**/*
+
+# flyctl launch added from .venv/.gitignore
+.venv/**/*
+fly.toml

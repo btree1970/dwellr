@@ -13,18 +13,6 @@ class Settings(BaseSettings):
         default="sqlite:////tmp/dwell/dwell.db", description="Database connection URL"
     )
 
-    # Email settings
-    email_username: Optional[str] = Field(
-        default=None, description="Email username for SMTP authentication"
-    )
-    email_password: Optional[str] = Field(
-        default=None, description="Email password for SMTP authentication"
-    )
-    smtp_server: str = Field(
-        default="smtp.gmail.com", description="SMTP server address"
-    )
-    smtp_port: int = Field(default=587, description="SMTP server port")
-
     # OpenAI settings
     openai_api_key: Optional[str] = Field(
         default=None, description="OpenAI API key for AI features"
@@ -58,8 +46,18 @@ class Settings(BaseSettings):
         default=None, description="Celery result backend (defaults to redis_url)"
     )
 
+    @staticmethod
+    def get_env_file() -> str:
+        env = os.getenv("ENV", "development")
+        if env == "test":
+            return ".env.test"
+        elif env == "local":
+            return ".env.local"
+        else:
+            return ".env"
+
     model_config = SettingsConfigDict(
-        env_file=".env.test" if os.getenv("ENV") == "test" else ".env",
+        env_file=get_env_file(),
         env_file_encoding="utf-8",
     )
 

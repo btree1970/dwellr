@@ -42,8 +42,6 @@ class EvaluationResult:
 
 
 class ListingEvaluator:
-    """Service for evaluating listings against user preferences using LLM"""
-
     def __init__(
         self, openai_api_key: Optional[str] = None, model: str = "gpt-4o-mini"
     ):
@@ -54,10 +52,6 @@ class ListingEvaluator:
             model: Model to use for evaluation (default: gpt-4o-mini for cost efficiency)
         """
         api_key = openai_api_key or settings.openai_api_key
-        if not api_key:
-            raise ValueError(
-                "OpenAI API key must be provided via parameter or settings"
-            )
 
         self.client = OpenAI(api_key=api_key)
         self.model = model

@@ -4,12 +4,26 @@ from typing import Any, Dict
 from celery.utils.log import get_task_logger
 
 from src.database.db import get_db_session
+from src.jobs.job_types import JobType
 from src.models.task import Task
 from src.workers.celery_app import create_celery_app
 
 logger = get_task_logger(__name__)
 
 app = create_celery_app()
+
+
+@app.task(name="src.workers.tasks.scheduled_sync_task")
+def scheduled_sync_task():
+    from src.jobs.scheduler import JobScheduler
+
+    scheduler = JobScheduler()
+    task_id = scheduler.schedule_job(
+        job_type=JobType.SYNC_LISTINGS, context={"scheduled": True}
+    )
+
+    logger.info(f"Created scheduled sync task {task_id}")
+    return {"scheduled_task_id": task_id}
 
 
 @app.task(name="src.workers.tasks.process_task")
@@ -31,10 +45,10 @@ def process_task(task_id: str) -> Dict[str, Any]:
 
         try:
             # Simple routing based on task type
-            if task.task_type == "evaluate_listings":
+            if task.task_type == JobType.EVALUATE_LISTINGS.value:
                 logger.info(f"Handling evaluate_listings for task {task_id}")
                 result = handle_evaluate_listings(task)
-            elif task.task_type == "sync_listings":
+            elif task.task_type == JobType.SYNC_LISTINGS.value:
                 logger.info(f"Handling sync_listings for task {task_id}")
                 result = handle_sync_listings(task)
             else:

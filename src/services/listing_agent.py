@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
 
 from src.models.listing import Listing
 from src.models.listing_evaluation import ListingEvaluation
@@ -17,7 +18,7 @@ class BudgetExceededException(Exception):
 class ListingAgent:
     """Digital real estate agent that finds, evaluates, and recommends listings for users"""
 
-    def __init__(self, db, evaluator: Optional[ListingEvaluator] = None):
+    def __init__(self, db: Session, evaluator: Optional[ListingEvaluator] = None):
         """Initialize the ListingAgent
 
         Args:
@@ -25,7 +26,7 @@ class ListingAgent:
             evaluator: ListingEvaluator instance (creates default if None)
         """
         self.db = db
-        self.evaluator = evaluator
+        self.evaluator = evaluator or ListingEvaluator()
 
     def find_and_evaluate_listings(
         self, user: User, max_evaluations: int = 50, max_cost: float = 2.00
@@ -66,7 +67,7 @@ class ListingAgent:
             candidate_listings = candidate_listings[:max_affordable]
 
         # Evaluate listings in batches
-        evaluations = []
+        evaluations: List[EvaluationResult] = []
         total_cost = 0.0
 
         for listing in candidate_listings:
@@ -118,12 +119,12 @@ class ListingAgent:
             .join(Listing, ListingEvaluation.listing_id == Listing.id)
             .filter(ListingEvaluation.user_id == user.id)
             .order_by(
-                ListingEvaluation.score.desc(), ListingEvaluation.evaluated_at.desc()
+                ListingEvaluation.score.desc(), ListingEvaluation.created_at.desc()
             )
             .limit(limit)
         )
 
-        results = []
+        results: List[Tuple[Listing, ListingEvaluation]] = []
         for evaluation, listing in query.all():
             results.append((listing, evaluation))
 
@@ -170,15 +171,17 @@ class ListingAgent:
         latest_eval = (
             self.db.query(ListingEvaluation)
             .filter(ListingEvaluation.user_id == user.id)
-            .order_by(ListingEvaluation.evaluated_at.desc())
+            .order_by(ListingEvaluation.created_at.desc())
             .first()
         )
 
         return {
-            "total_evaluations": stats_query.count,
-            "total_cost": float(stats_query.total_cost or 0.0),
-            "average_score": float(stats_query.avg_score or 0.0),
-            "latest_evaluation": latest_eval.evaluated_at if latest_eval else None,
+            "total_evaluations": stats_query.count if stats_query else 0,
+            "total_cost": float(stats_query.total_cost or 0.0) if stats_query else 0.0,
+            "average_score": (
+                float(stats_query.avg_score or 0.0) if stats_query else 0.0
+            ),
+            "latest_evaluation": latest_eval.created_at if latest_eval else None,
         }
 
     def _get_candidate_listings(self, user: User, limit: int = 100) -> List[Listing]:

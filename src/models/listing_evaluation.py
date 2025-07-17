@@ -50,5 +50,4 @@ class ListingEvaluation(Base):
             cost_usd=evaluation_result.cost_usd,
             tokens_used=evaluation_result.total_tokens,
             model_used=evaluation_result.model_used,
-            evaluated_at=evaluation_result.evaluated_at,
         )

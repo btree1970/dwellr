@@ -46,6 +46,14 @@ class Settings(BaseSettings):
         default=None, description="Celery result backend (defaults to redis_url)"
     )
 
+    # Evaluation settings
+    evaluation_enabled: bool = Field(
+        default=True, description="Enable automatic listing evaluation"
+    )
+    evaluation_frequency_hours: int = Field(
+        default=6, description="How often to run evaluation tasks (in hours)"
+    )
+
     @staticmethod
     def get_env_file() -> str:
         env = os.getenv("ENV", "development")

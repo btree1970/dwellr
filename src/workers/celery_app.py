@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from celery import Celery
 
 from src.config import settings
@@ -13,9 +15,13 @@ def create_celery_app() -> Celery:
         result_serializer="json",
         accept_content=["json"],
         beat_schedule={
-            "sync-listings-hourly": {
+            "sync-listings": {
                 "task": "src.workers.tasks.scheduled_sync_task",
-                "schedule": 3600.0,
+                "schedule": timedelta(hours=6),
+            },
+            "evaluate-listings": {
+                "task": "src.workers.tasks.scheduled_evaluation_task",
+                "schedule": timedelta(hours=6),
             },
         },
         timezone="UTC",

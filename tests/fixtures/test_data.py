@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.models.listing import Listing, ListingType, PricePeriod
 from src.models.user import User
@@ -180,3 +180,61 @@ def create_simple_user(
         preferred_listing_type=ListingType.SUBLET,
         date_flexibility_days=0,
     )
+
+
+def create_user_with_credits(
+    name: str = "Test User",
+    email: str = "test@example.com",
+    credits: float = 5.00,
+    preference_profile: str = "Looking for apartments",
+    **kwargs,
+) -> User:
+    """Create a user with evaluation credits - flexible for different test scenarios"""
+    user_data = {
+        "name": name,
+        "email": email,
+        "evaluation_credits": credits,
+        "preference_profile": preference_profile,
+    }
+    user_data.update(kwargs)  # Allow any additional User fields
+    return User(**user_data)
+
+
+def create_standard_listing(
+    title: str = "Test Listing",
+    price: float = 800.0,
+    price_period: PricePeriod = PricePeriod.MONTH,
+    listing_type: ListingType = ListingType.RENTAL,
+    source_site: str = "test_source",
+    **kwargs,
+) -> Listing:
+    """Create a standard listing - flexible for different test scenarios"""
+    listing_data = {
+        "id": f"test_{hash(title) % 10000}",
+        "url": f"https://test.com/listing/{hash(title) % 10000}",
+        "title": title,
+        "price": price,
+        "price_period": price_period,
+        "listing_type": listing_type,
+        "start_date": datetime(2024, 1, 1, tzinfo=timezone.utc),
+        "end_date": datetime(2024, 12, 31, tzinfo=timezone.utc),
+        "source_site": source_site,
+    }
+    listing_data.update(kwargs)  # Allow any additional Listing fields
+    return Listing(**listing_data)
+
+
+def create_multiple_listings(
+    count: int = 3, base_price: float = 800.0
+) -> list[Listing]:
+    """Create multiple listings with varying prices for testing"""
+    listings = []
+    for i in range(count):
+        listings.append(
+            create_standard_listing(
+                title=f"Apartment {i + 1}",
+                price=base_price + (i * 100),
+                source_site=f"multi_test_{i + 1}",
+            )
+        )
+    return listings

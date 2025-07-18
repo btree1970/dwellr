@@ -41,6 +41,8 @@ class User(Base):
     preference_version: Mapped[int] = mapped_column(Integer, default=1)
     last_preference_update: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
+    evaluation_credits: Mapped[float] = mapped_column(Float, default=0.0)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )

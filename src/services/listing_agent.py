@@ -29,13 +29,12 @@ class ListingAgent:
         self.evaluator = evaluator or ListingEvaluator()
 
     def find_and_evaluate_listings(
-        self, user: User, max_evaluations: int = 50, max_cost: float = 2.00
+        self, user: User, max_cost: float = 2.00
     ) -> Dict[str, Any]:
         """Find candidate listings and evaluate them with LLM
 
         Args:
             user: User to find listings for
-            max_evaluations: Maximum number of listings to evaluate
             max_cost: Maximum cost to spend on evaluations (USD)
 
         Returns:
@@ -51,20 +50,11 @@ class ListingAgent:
         }
 
         # Get candidate listings (hard filtered, not yet evaluated)
-        candidate_listings = self._get_candidate_listings(user, limit=max_evaluations)
+        candidate_listings = self._get_candidate_listings(user)
         stats["candidate_listings_found"] = len(candidate_listings)
 
         if not candidate_listings:
             return stats
-
-        # Estimate cost before starting
-        # TODO: Find a good way to handle this good for now
-        estimated_cost = self._estimate_evaluation_cost(len(candidate_listings))
-        if estimated_cost > max_cost:
-            stats["budget_exceeded"] = True
-            # Reduce to fit budget
-            max_affordable = int(max_cost / (estimated_cost / len(candidate_listings)))
-            candidate_listings = candidate_listings[:max_affordable]
 
         # Evaluate listings in batches
         evaluations: List[EvaluationResult] = []
@@ -184,12 +174,12 @@ class ListingAgent:
             "latest_evaluation": latest_eval.created_at if latest_eval else None,
         }
 
-    def _get_candidate_listings(self, user: User, limit: int = 100) -> List[Listing]:
+    def _get_candidate_listings(self, user: User, limit: int = 1000) -> List[Listing]:
         """Get listings that match user's hard filters and haven't been evaluated
 
         Args:
             user: User to get candidates for
-            limit: Maximum number of candidates to return
+            limit: Maximum number of candidates to return (large default for complete coverage)
 
         Returns:
             List of Listing objects

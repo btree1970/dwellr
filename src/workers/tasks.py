@@ -158,7 +158,7 @@ def evaluate_user_listings(self: Any, user_id: str) -> Dict[str, Any]:
             return {"success": False, "error": "Insufficient credits"}
 
         logger.info(
-            f"Evaluating listings for user {user_id} with {user.evaluation_credits:.2f} credits (attempt {self.request.retries + 1})"  # type: ignore
+            f"Evaluating listings for user {user_id} with {user.evaluation_credits:.2f} credits (attempt {self.request.retries + 1})"
         )
 
         try:
@@ -202,7 +202,7 @@ def evaluate_user_listings(self: Any, user_id: str) -> Dict[str, Any]:
 
         except Exception as e:
             logger.warning(
-                f"User {user_id} transient error (attempt {self.request.retries + 1}): {str(e)}"  # type: ignore
+                f"User {user_id} transient error (attempt {self.request.retries + 1}): {str(e)}"
             )
             raise
 

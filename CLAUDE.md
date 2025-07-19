@@ -20,10 +20,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Check Redis**: `redis-cli ping`
 
 ### Application Commands
-- **Run main CLI**: `python dwell.py`
-- **Run sync CLI**: `python sync_cli.py`
+- **Run rental app**: `python dwell_app.py`
+- **Task management CLI**: `python dwell_cli.py task <command>`
 - **Initialize database**: Use `DatabaseManager.init_db()` in code
 - **Reset database**: Use `DatabaseManager.reset_db()` in code
+
+### Task Management CLI
+- **Run sync task**: `python dwell_cli.py task sync [--verbose] [--no-wait]`
+- **Run evaluation task**: `python dwell_cli.py task evaluate [--verbose] [--no-wait]`
+- **Check task status**: `python dwell_cli.py task status <task_id> [--verbose]`
+- **List tasks**: `python dwell_cli.py task list [--type=sync|evaluate] [--status=failed]`
 
 ## Architecture Overview
 

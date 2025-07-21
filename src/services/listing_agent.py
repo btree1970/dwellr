@@ -204,7 +204,7 @@ class ListingAgent:
         if stay_duration and (
             "min_total_cost" in hard_filters or "max_total_cost" in hard_filters
         ):
-            from sqlalchemy import case
+            from sqlalchemy import Numeric, case, func
 
             from src.models.listing import PricePeriod
 
@@ -212,24 +212,24 @@ class ListingAgent:
             user_min_total = hard_filters.get("min_total_cost")
             user_max_total = hard_filters.get("max_total_cost")
 
-            # Create SQL expression for listing's total cost
-            from sqlalchemy import func
-
             listing_total_cost = func.round(
-                case(
-                    (
-                        Listing.price_period == PricePeriod.DAY,
-                        Listing.price * stay_duration,
+                func.cast(
+                    case(
+                        (
+                            Listing.price_period == PricePeriod.DAY,
+                            Listing.price * stay_duration,
+                        ),
+                        (
+                            Listing.price_period == PricePeriod.WEEK,
+                            Listing.price * (stay_duration / 7.0),
+                        ),
+                        (
+                            Listing.price_period == PricePeriod.MONTH,
+                            Listing.price * (stay_duration / 30.0),
+                        ),
+                        else_=Listing.price * stay_duration,
                     ),
-                    (
-                        Listing.price_period == PricePeriod.WEEK,
-                        Listing.price * (stay_duration / 7.0),
-                    ),
-                    (
-                        Listing.price_period == PricePeriod.MONTH,
-                        Listing.price * (stay_duration / 30.0),
-                    ),
-                    else_=Listing.price * stay_duration,
+                    Numeric,
                 ),
                 2,
             )

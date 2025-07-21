@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Run single test**: `pytest tests/test_workers_basic.py`
 - **Lint code**: `ruff check src/`
 - **Format code**: `black src/`
-- **Type check**: `mypy src/`
+- **Type check**: `pyright src/`
 
 ### Worker/Celery Commands
 - **Start Redis**: `docker-compose -f docker-compose.dev.yml up -d redis`

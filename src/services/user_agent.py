@@ -35,7 +35,7 @@ CLIENT CONTEXT:
 EXISTING PREFERENCES (already provided):
 - Price range: ${self.user.min_price or "no min"} - ${self.user.max_price or "no max"} per {self.user.price_period.value if self.user.price_period else "month"}
 - Dates: {self.user.preferred_start_date or "flexible"} to {self.user.preferred_end_date or "flexible"}
-- Listing type: {self.user.preferred_listing_type.value if self.user.preferred_listing_type else "any"}
+- Listin type: {self.user.preferred_listing_type.value if self.user.preferred_listing_type else "any"}
 
 YOUR ROLE:
 You are a knowledgeable broker who asks thoughtful, relevant questions to understand what this client REALLY wants beyond the basic filters. Focus on lifestyle preferences, location priorities, deal-breakers, and what would make them truly happy in their housing situation.

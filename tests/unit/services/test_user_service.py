@@ -71,14 +71,19 @@ class TestUpdateUserPreferences:
             user = user_service.create_user(name="Test User", email="test@example.com")
 
             updates = UserPreferenceUpdates(
-                name="Updated Name", phone="555-1234", bio="New bio"
+                min_price=1000.0,
+                max_price=3000.0,
+                preference_profile="Looking for a quiet neighborhood with good transit access",
             )
 
             updated_user = user_service.update_user_preferences(user.id, updates)
 
-            assert updated_user.name == "Updated Name"
-            assert updated_user.phone == "555-1234"
-            assert updated_user.bio == "New bio"
+            assert updated_user.min_price == 1000.0
+            assert updated_user.max_price == 3000.0
+            assert (
+                updated_user.preference_profile
+                == "Looking for a quiet neighborhood with good transit access"
+            )
             assert updated_user.email == "test@example.com"  # unchanged
 
     def test_update_price_preferences(self, clean_database):
@@ -120,11 +125,15 @@ class TestUpdateUserPreferences:
                 name="Test User", email="test@example.com", phone="555-0000"
             )
 
-            updates = UserPreferenceUpdates(name="New Name")
+            # Set some initial preferences
+            user.max_price = 2000.0
+            db.commit()
+
+            updates = UserPreferenceUpdates(min_price=1500.0)
             updated_user = user_service.update_user_preferences(user.id, updates)
 
-            assert updated_user.name == "New Name"
-            assert updated_user.phone == "555-0000"  # unchanged
+            assert updated_user.min_price == 1500.0
+            assert updated_user.max_price == 2000.0  # unchanged
             assert updated_user.email == "test@example.com"  # unchanged
 
     def test_tracking_fields_updated(self, clean_database):
@@ -134,7 +143,7 @@ class TestUpdateUserPreferences:
 
             original_version = user.preference_version
 
-            updates = UserPreferenceUpdates(bio="Updated bio")
+            updates = UserPreferenceUpdates(preference_profile="Updated preferences")
             updated_user = user_service.update_user_preferences(user.id, updates)
 
             assert updated_user.preference_version == original_version + 1
@@ -191,7 +200,7 @@ class TestUpdateUserPreferences:
         with get_db_session() as db:
             user_service = UserService(db)
 
-            updates = UserPreferenceUpdates(name="New Name")
+            updates = UserPreferenceUpdates(min_price=1000.0)
 
             with pytest.raises(UserNotFound):
                 user_service.update_user_preferences("nonexistent-id", updates)
@@ -207,3 +216,14 @@ class TestUpdateUserPreferences:
             ValueError, match="Input should be less than or equal to 30"
         ):
             UserPreferenceUpdates(date_flexibility_days=50)
+
+    def test_pydantic_forbids_extra_fields(self):
+        with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+            UserPreferenceUpdates(name="Test User", email="test@example.com")
+
+    def test_pydantic_forbids_onboarding_fields(self):
+        onboarding_fields = ["name", "email", "phone", "occupation", "bio"]
+
+        for field in onboarding_fields:
+            with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+                UserPreferenceUpdates(**{field: "test value"})

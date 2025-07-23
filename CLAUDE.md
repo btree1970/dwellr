@@ -6,11 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Core Commands
 - **Install dependencies**: `uv sync` (uses uv package manager)
-- **Run tests**: `pytest tests/` or `python -m pytest tests/`
-- **Run single test**: `pytest tests/test_workers_basic.py`
-- **Lint code**: `ruff check src/`
-- **Format code**: `black src/`
-- **Type check**: `pyright src/`
+- **Run Python scripts**: `uv run python script.py` (runs in managed environment)
+- **Run tests**: `uv run pytest tests/` or `uv run python -m pytest tests/`
+- **Run single test**: `uv run pytest tests/test_workers_basic.py`
+- **Lint code**: `uv run ruff check src/`
+- **Format code**: `uv run black src/`
+- **Type check**: `uv run pyright src/`
 
 ### Worker/Celery Commands
 - **Start Redis**: `docker-compose -f docker-compose.dev.yml up -d redis`

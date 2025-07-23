@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -22,30 +22,32 @@ class UserValidationError(UserServiceException):
 
 
 class UserPreferenceUpdates(BaseModel):
-    name: Optional[str] = Field(None, description="User's full name")
-    email: Optional[str] = Field(None, description="User's email address")
-    phone: Optional[str] = Field(None, description="User's phone number")
-    occupation: Optional[str] = Field(None, description="User's occupation")
-    bio: Optional[str] = Field(None, description="User's biographical information")
+    model_config = ConfigDict(extra="forbid")
 
+    # Price preferences
     min_price: Optional[float] = Field(None, ge=0, description="Minimum price filter")
     max_price: Optional[float] = Field(None, ge=0, description="Maximum price filter")
     price_period: Optional[PricePeriod] = Field(
         None, description="Price period (day, week, month)"
     )
+
+    # Date preferences
     preferred_start_date: Optional[datetime] = Field(
         None, description="Preferred start date for stay"
     )
     preferred_end_date: Optional[datetime] = Field(
         None, description="Preferred end date for stay"
     )
-    preferred_listing_type: Optional[ListingType] = Field(
-        None, description="Preferred type of listing"
-    )
     date_flexibility_days: Optional[int] = Field(
         None, ge=0, le=30, description="Date flexibility in days"
     )
 
+    # Listing preferences
+    preferred_listing_type: Optional[ListingType] = Field(
+        None, description="Preferred type of listing"
+    )
+
+    # Natural language preferences
     preference_profile: Optional[str] = Field(
         None, description="Detailed preferences and requirements in natural language"
     )

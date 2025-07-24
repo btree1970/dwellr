@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+from openai.types.responses import FunctionToolParam
 from sqlalchemy.orm import Session
 
 from src.models.user import User
@@ -53,8 +54,10 @@ def update_user_preferences(
         }
 
 
-PREFERENCES_TOOL_DEFINITION: Dict[str, Any] = {
-    "name": "update_user_preferences",
-    "description": "Update user housing preferences based on conversation insights",
-    "parameters": UserPreferenceUpdates.model_json_schema(),
-}
+PREFERENCES_TOOL_DEFINITION = FunctionToolParam(
+    name="update_user_preferences",
+    parameters=UserPreferenceUpdates.model_json_schema(),
+    strict=False,
+    type="function",
+    description="Update user housing preferences based on conversation insights",
+)

@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+from openai.types.responses import FunctionToolParam
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -41,8 +42,10 @@ def get_listing_recommendations(
         }
 
 
-RECOMMENDATIONS_TOOL_DEFINITION: Dict[str, Any] = {
-    "name": "get_listing_recommendations",
-    "description": "Get personalized listing recommendations based on user preferences",
-    "parameters": RecommendationRequest.model_json_schema(),
-}
+RECOMMENDATIONS_TOOL_DEFINITION = FunctionToolParam(
+    name="get_listing_recommendations",
+    parameters=RecommendationRequest.model_json_schema(),
+    strict=False,
+    type="function",
+    description="Get personalized listing recommendations based on user preferences",
+)

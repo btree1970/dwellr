@@ -1,9 +1,8 @@
 from typing import Any, Dict
 
-from openai.types.responses import FunctionToolParam
-from sqlalchemy.orm import Session
+from pydantic_ai import RunContext
 
-from src.models.user import User
+from src.agents.user_agent import UserAgentDependencies, user_agent
 from src.services.user_service import (
     UserNotFound,
     UserPreferenceUpdates,
@@ -12,14 +11,17 @@ from src.services.user_service import (
 )
 
 
+@user_agent.tool
 def update_user_preferences(
-    user: User, db: Session, **preferences: Any
+    ctx: RunContext[UserAgentDependencies], preferences: UserPreferenceUpdates
 ) -> Dict[str, Any]:
     """Update user preferences based on conversational input"""
+    print("how are you doing")
     try:
-        user_service = UserService(db)
-        updates = UserPreferenceUpdates(**preferences)
-        updated_user = user_service.update_user_preferences(user.id, updates)
+        user_service = UserService(ctx.deps.db)
+        updated_user = user_service.update_user_preferences(
+            ctx.deps.user.id, preferences
+        )
 
         return {
             "success": True,
@@ -52,12 +54,3 @@ def update_user_preferences(
             "message": f"Failed to update preferences: {str(e)}",
             "updated_preferences": {},
         }
-
-
-PREFERENCES_TOOL_DEFINITION = FunctionToolParam(
-    name="update_user_preferences",
-    parameters=UserPreferenceUpdates.model_json_schema(),
-    strict=False,
-    type="function",
-    description="Update user housing preferences based on conversation insights",
-)

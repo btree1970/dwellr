@@ -21,6 +21,8 @@ dependencies = [
     "celery-types>=0.23.0",
     "pyyaml>=6.0.1",
     "psycopg2-binary>=2.9.10",
+    "pydantic-ai[logfire]>=0.4.7",
+    "logfire[asyncpg]>=4.0.0",
 ]
 
 [dependency-groups]

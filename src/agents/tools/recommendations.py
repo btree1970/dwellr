@@ -1,10 +1,9 @@
 from typing import Any, Dict
 
-from openai.types.responses import FunctionToolParam
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import Session
+from pydantic_ai import RunContext
 
-from src.models.user import User
+from src.agents.user_agent import UserAgentDependencies, user_agent
 from src.services.listing_agent import ListingAgent
 
 
@@ -16,15 +15,18 @@ class RecommendationRequest(BaseModel):
     )
 
 
+@user_agent.tool
 def get_listing_recommendations(
-    user: User, db: Session, **params: Any
+    ctx: RunContext[UserAgentDependencies], **params: Any
 ) -> Dict[str, Any]:
     """Get personalized listing recommendations for user"""
     try:
         request = RecommendationRequest(**params)
-        listing_agent = ListingAgent(db)
+        listing_agent = ListingAgent(ctx.deps.db)
 
-        recommendations = listing_agent.get_recommendations(user, limit=request.limit)
+        recommendations = listing_agent.get_recommendations(
+            ctx.deps.user, limit=request.limit
+        )
 
         return {
             "success": True,
@@ -40,12 +42,3 @@ def get_listing_recommendations(
             "recommendations": [],
             "total_found": 0,
         }
-
-
-RECOMMENDATIONS_TOOL_DEFINITION = FunctionToolParam(
-    name="get_listing_recommendations",
-    parameters=RecommendationRequest.model_json_schema(),
-    strict=False,
-    type="function",
-    description="Get personalized listing recommendations based on user preferences",
-)

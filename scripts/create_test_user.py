@@ -35,10 +35,10 @@ def create_parser():
         epilog="""
 Examples:
   # Basic test user
-  python scripts/create_test_user.py --name "Test User" --email "test@example.com"
+  ./scripts/create_test_user.py --name "Test User" --email "test@example.com"
 
   # Comprehensive test user
-  python scripts/create_test_user.py \\
+  ./scripts/create_test_user.py \\
     --name "John Doe" \\
     --email "john@test.com" \\
     --phone "555-0123" \\

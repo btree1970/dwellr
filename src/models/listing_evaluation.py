@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -35,6 +35,16 @@ class ListingEvaluation(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "score": self.score,
+            "reasoning": self.reasoning,
+            "cost_usd": self.cost_usd,
+            "tokens_used": self.tokens_used,
+            "model_used": self.model_used,
+            "created_at": self.created_at.isoformat(),
+        }
 
     def __repr__(self):
         return f"<ListingEvaluation(id='{self.id}', user_id='{self.user_id}', listing_id='{self.listing_id}', score={self.score})>"

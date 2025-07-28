@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from sqlalchemy import Boolean, DateTime, Float, String
 from sqlalchemy import Enum as SQLEnum
@@ -43,6 +43,22 @@ class Listing(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "url": self.url,
+            "title": self.title,
+            "price": self.price,
+            "price_period": self.price_period.value if self.price_period else None,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "neighborhood": self.neighborhood,
+            "brief_description": self.brief_description,
+            "full_description": self.full_description,
+            "contact_name": self.contact_name,
+            "contact_email": self.contact_email,
+            "listing_type": self.listing_type.value,
+        }
 
     def __repr__(self):
         return f"<Listing(id='{self.id}', title='{self.title}', price={self.price}, price_period={self.price_period}, start_date={self.start_date}, end_date={self.end_date})>"

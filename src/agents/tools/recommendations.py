@@ -1,9 +1,9 @@
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_ai import RunContext
 
-from src.agents.user_agent import UserAgentDependencies, user_agent
+from src.agents.deps import UserAgentDependencies
 from src.services.listing_agent import ListingAgent
 
 
@@ -15,7 +15,6 @@ class RecommendationRequest(BaseModel):
     )
 
 
-@user_agent.tool
 def get_listing_recommendations(
     ctx: RunContext[UserAgentDependencies], **params: Any
 ) -> Dict[str, Any]:
@@ -28,11 +27,15 @@ def get_listing_recommendations(
             ctx.deps.user, limit=request.limit
         )
 
+        serializedRecommendation: List[Tuple[Dict[str, Any], Dict[str, Any]]] = [
+            (x.to_dict(), y.to_dict()) for x, y in recommendations
+        ]
+
         return {
             "success": True,
-            "message": f"Found {len(recommendations)} recommendations",
-            "recommendations": recommendations,
-            "total_found": len(recommendations),
+            "message": f"Found {len(serializedRecommendation)} recommendations",
+            "recommendations": serializedRecommendation,
+            "total_found": len(serializedRecommendation),
         }
 
     except Exception as e:

@@ -1,20 +1,11 @@
-from dataclasses import dataclass
-
 import logfire
 from pydantic_ai import Agent, RunContext
-from sqlalchemy.orm import Session
 
-from src.models.user import User
+from src.agents.deps import UserAgentDependencies
+from src.agents.tools import get_listing_recommendations, update_user_preferences
 
 logfire.configure()
 logfire.instrument_pydantic_ai()
-
-
-@dataclass
-class UserAgentDependencies:
-    db: Session
-    user: User
-
 
 user_agent = Agent(
     model="openai:gpt-4o",
@@ -22,12 +13,8 @@ user_agent = Agent(
     instrument=True,
 )
 
-
-def register_tools():
-    pass  # type: ignore
-
-
-register_tools()
+user_agent.tool(get_listing_recommendations)
+user_agent.tool(update_user_preferences)
 
 
 @user_agent.system_prompt

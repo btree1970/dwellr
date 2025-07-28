@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from pydantic_ai import RunContext
 
-from src.agents.user_agent import UserAgentDependencies, user_agent
+from src.agents.deps import UserAgentDependencies
 from src.services.user_service import (
     UserNotFound,
     UserPreferenceUpdates,
@@ -11,7 +11,6 @@ from src.services.user_service import (
 )
 
 
-@user_agent.tool
 def update_user_preferences(
     ctx: RunContext[UserAgentDependencies], preferences: UserPreferenceUpdates
 ) -> Dict[str, Any]:

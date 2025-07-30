@@ -1,11 +1,260 @@
+import logging
+import uuid
+from typing import AsyncGenerator, Optional
+
 import logfire
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.messages import (
+    AgentStreamEvent,
+    ModelMessage,
+    ModelMessagesTypeAdapter,
+)
+from sqlalchemy.orm.session import Session
 
 from src.agents.deps import UserAgentDependencies
 from src.agents.tools import get_listing_recommendations, update_user_preferences
+from src.models.user import User
+from src.models.user_session import UserSession
+
+logger = logging.getLogger(__name__)
 
 logfire.configure()
 logfire.instrument_pydantic_ai()
+
+
+class UserAgent:
+    _db_session: Session
+    _user_session_id: str
+    _user: User
+    _agent_deps: UserAgentDependencies
+    _message_history: list[ModelMessage]
+    _is_new_session: bool
+
+    def __init__(self, db_session: Session, user: User):
+        self._model = "openai:gpt-4o"
+        self._user = user
+        self._db_session = db_session
+        self._agent_deps = UserAgentDependencies(db=db_session, user=user)
+        self._is_new_session = False
+
+        self._load_or_create_session()
+
+    def _load_or_create_session(self):
+        """Load existing session or create new one for user"""
+        user_session = (
+            self._db_session.query(UserSession).filter_by(user_id=self._user.id).first()
+        )
+
+        if user_session and user_session.session_id:
+            self._user_session_id = user_session.session_id
+            self.is_new_session = False
+            try:
+                history_data = user_session.get_message_history()
+                self._message_history = ModelMessagesTypeAdapter.validate_python(
+                    history_data
+                )
+                logger.info(
+                    f"Loaded existing session {self._user_session_id} with {len(self._message_history)} messages"
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to load message history for user {self._user.id}: {e}"
+                )
+                # If we can't load history, treat as new session
+                # Overwriting existing session.
+                self._create_new_session()
+        else:
+            self._create_new_session()
+
+    def _create_new_session(self):
+        self._user_session_id = str(uuid.uuid4())
+        self._message_history = []
+        self._is_new_session = True
+
+        user_session = (
+            self._db_session.query(UserSession).filter_by(user_id=self._user.id).first()
+        )
+
+        if user_session:
+            user_session.session_id = self._user_session_id
+            user_session.set_message_history([])
+        else:
+            user_session = UserSession(
+                user_id=self._user.id,
+                session_id=self._user_session_id,
+            )
+            user_session.set_message_history([])
+            self._db_session.add(user_session)
+
+        try:
+            self._db_session.commit()
+            logger.info(
+                f"Created new session {self._user_session_id} for user {self._user.id}"
+            )
+        except Exception as e:
+            self._db_session.rollback()
+            logger.error(f"Failed to create session: {e}")
+            raise
+
+    async def chat(
+        self, user_prompt: Optional[str] = None
+    ) -> AsyncGenerator[AgentStreamEvent, None]:
+        """
+        Chat with the agent. For new sessions, agent will initiate if no prompt provided.
+        For existing sessions, user_prompt is required.
+        Yields streaming responses from the agent.
+        """
+
+        # Determine if we need to start the conversation
+        should_agent_initiate = self._is_new_session and (
+            not user_prompt or not user_prompt.strip()
+        )
+
+        # For existing sessions, require user input
+        if not self._is_new_session and (not user_prompt or not user_prompt.strip()):
+            raise ValueError("User prompt required for existing conversations")
+
+        agent = Agent(model=self._model, deps_type=UserAgentDependencies)
+        # self._set_system_prompt(agent)
+
+        # If agent should initiate the conversation run
+        # the agent with empty prompt so the agent can start
+        # the conversation
+        prompt_to_use = "" if should_agent_initiate else user_prompt
+
+        try:
+            async with agent.iter(
+                prompt_to_use,
+                deps=self._agent_deps,
+                message_history=self._message_history,
+            ) as agent_run:
+                async for node in agent_run:
+                    if Agent.is_model_request_node(node):
+                        async with node.stream(agent_run.ctx) as handle_stream:
+                            async for content in handle_stream:
+                                yield content
+
+                if agent_run.result:
+                    self._message_history = agent_run.result.all_messages()
+                    self._save_message_history()
+
+                if self._is_new_session:
+                    self._is_new_session = False
+
+        except Exception as e:
+            logger.error(f"Error during chat: {e}")
+            raise e
+
+        return
+
+    def get_message_history(self) -> list[ModelMessage]:
+        return self._message_history
+
+    def _save_message_history(self):
+        """Save current message history to database"""
+        try:
+            user_session = (
+                self._db_session.query(UserSession)
+                .filter_by(user_id=self._user.id)
+                .first()
+            )
+
+            if user_session:
+                user_session.set_message_history(self._message_history)
+                self._db_session.commit()
+                logger.debug(
+                    f"Saved {len(self._message_history)} messages to session {self._user_session_id}"
+                )
+            else:
+                logger.error(
+                    f"No user session found to save history for user {self._user.id}"
+                )
+
+        except Exception as e:
+            self._db_session.rollback()
+            logger.error(f"Failed to save message history: {e}")
+            raise
+
+    def _set_system_prompt(self, user_agent: Agent[UserAgentDependencies]):
+        def system_prompt(ctx: RunContext[UserAgentDependencies]) -> str:
+            return f"""
+        You are an experienced real estate agent helping {ctx.deps.user.name} find their ideal housing. Your goal is to build a comprehensive, nuanced user profile that captures not just preferences, but also flexibility levels and dealbreakers.
+
+        USER CONTEXT:
+        - Name: {ctx.deps.user.name}
+        - Occupation: {ctx.deps.user.occupation or "not specified"}
+        - Bio: {ctx.deps.user.bio or "not specified"}
+
+        EXISTING PREFERENCES:
+        - Price range: ${ctx.deps.user.min_price or "no min"} - ${ctx.deps.user.max_price or "no max"}
+        - Price period: {ctx.deps.user.price_period}
+        - Dates: {ctx.deps.user.preferred_start_date or "flexible"} to {ctx.deps.user.preferred_end_date or "flexible"}
+        - Date flexibility: ±{ctx.deps.user.date_flexibility_days} days
+        - Listing type: {ctx.deps.user.preferred_listing_type.value if ctx.deps.user.preferred_listing_type else "any"}
+        - Current preference profile: {ctx.deps.user.preference_profile if ctx.deps.user.preference_profile else "No detailed preferences captured yet"}
+
+        PREFERENCE CAPTURE FRAMEWORK:
+        For each preference area, determine:
+        1. **Dealbreakers** (absolute requirements - non-negotiable)
+        2. **Strong preferences** (important but some flexibility possible)
+        3. **Nice-to-haves** (would be great but not essential)
+        4. **Flexibility level** (rigid/somewhat flexible/very flexible)
+
+        KEY AREAS TO EXPLORE SYSTEMATICALLY:
+
+        **LOCATION & NEIGHBORHOOD:**
+        - Specific neighborhoods/areas (probe: dealbreaker vs preference?)
+        - Proximity requirements (work, friends, amenities, transit)
+        - Neighborhood vibe (quiet/busy, residential/mixed-use, etc.)
+        - Safety requirements and comfort levels
+
+        **PROPERTY CHARACTERISTICS:**
+        - Size requirements (bedrooms, bathrooms, square footage)
+        - Building type preferences (apartment, house, condo, etc.)
+        - Floor preferences, outdoor space needs
+        - Parking requirements (street vs garage vs none)
+        - Pet accommodation if applicable
+
+        **LIFESTYLE & WORK PATTERNS:**
+        - Work location and commute preferences/requirements
+        - Work from home needs (office space, internet, noise levels)
+        - Social patterns (hosting, entertaining, privacy needs)
+        - Daily routines that impact housing needs
+
+        **BUDGET & FINANCIAL:**
+        - Absolute maximum budget (true dealbreaker)
+        - Comfort range vs stretch range
+        - Flexibility on price for the right place
+        - Additional costs tolerance (utilities, parking, etc.)
+
+        **TIMELINE & FLEXIBILITY:**
+        - Must-move-by dates vs preferred dates
+        - How much lead time needed for decisions
+        - Seasonal preferences or constraints
+
+        CONVERSATION GUIDELINES:
+        - Ask follow-up questions to clarify specificity: "When you mention [specific area], is that a must-have or would you consider similar neighborhoods?"
+        - Probe for underlying reasons: "What draws you to that area?" or "What would make you rule out a place?"
+        - Validate captured information: "So it sounds like [X] is non-negotiable, but you're flexible on [Y] - is that right?"
+        - Build on existing information rather than starting over
+        - Use natural conversation flow while being thorough
+
+        COMPLETION CRITERIA:
+        Consider the profile complete when you have captured:
+        ✓ Clear dealbreakers vs preferences for location
+        ✓ Non-negotiable property requirements vs nice-to-haves
+        ✓ Budget constraints (absolute max vs comfort range)
+        ✓ Timeline requirements and flexibility levels
+        ✓ Key lifestyle factors that impact housing choice
+        ✓ Enough detail for another AI agent to make targeted recommendations
+
+        Only say "done" when you have a rich, nuanced profile that goes beyond basic criteria to capture the user's flexibility levels and underlying motivations for their housing preferences.
+
+        """
+
+        user_agent.system_prompt(system_prompt)
+
 
 user_agent = Agent(
     model="openai:gpt-4o",
@@ -20,22 +269,76 @@ user_agent.tool(update_user_preferences)
 @user_agent.system_prompt
 def system_prompt(ctx: RunContext[UserAgentDependencies]) -> str:
     return f"""
-you are an experienced real estate agent helping {ctx.deps.user.name} find housing.
+You are an experienced real estate agent helping {ctx.deps.user.name} find their ideal housing. Your goal is to build a comprehensive, nuanced user profile that captures not just preferences, but also flexibility levels and dealbreakers.
 
-user context:
-- name: {ctx.deps.user.name}
-- occupation: {ctx.deps.user.occupation or "not specified"}
-- bio: {ctx.deps.user.bio or "not specified"}
+USER CONTEXT:
+- Name: {ctx.deps.user.name}
+- Occupation: {ctx.deps.user.occupation or "not specified"}
+- Bio: {ctx.deps.user.bio or "not specified"}
 
-existing preferences:
-- price range: ${ctx.deps.user.min_price or "no min"} - ${ctx.deps.user.max_price or "no max"}
-- price period: ${ctx.deps.user.price_period}
-- dates: {ctx.deps.user.preferred_start_date or "flexible"} to {ctx.deps.user.preferred_end_date or "flexible"}
-- flexibility: ±{ctx.deps.user.date_flexibility_days}
-- listing type: {ctx.deps.user.preferred_listing_type.value if ctx.deps.user.preferred_listing_type else "any"}
-- preference profile: {ctx.deps.user.preference_profile if ctx.deps.user.preference_profile else "n/a"}
+EXISTING PREFERENCES:
+- Price range: ${ctx.deps.user.min_price or "no min"} - ${ctx.deps.user.max_price or "no max"}
+- Price period: {ctx.deps.user.price_period}
+- Dates: {ctx.deps.user.preferred_start_date or "flexible"} to {ctx.deps.user.preferred_end_date or "flexible"}
+- Date flexibility: ±{ctx.deps.user.date_flexibility_days} days
+- Listing type: {ctx.deps.user.preferred_listing_type.value if ctx.deps.user.preferred_listing_type else "any"}
+- Current preference profile: {ctx.deps.user.preference_profile if ctx.deps.user.preference_profile else "No detailed preferences captured yet"}
 
-your role:
-help the user find housing through natural conversation. you can update their preferences,
-get listing recommendations, and check evaluation status. be conversational and helpful.
+PREFERENCE CAPTURE FRAMEWORK:
+For each preference area, determine:
+1. **Dealbreakers** (absolute requirements - non-negotiable)
+2. **Strong preferences** (important but some flexibility possible)
+3. **Nice-to-haves** (would be great but not essential)
+4. **Flexibility level** (rigid/somewhat flexible/very flexible)
+
+KEY AREAS TO EXPLORE SYSTEMATICALLY:
+
+**LOCATION & NEIGHBORHOOD:**
+- Specific neighborhoods/areas (probe: dealbreaker vs preference?)
+- Proximity requirements (work, friends, amenities, transit)
+- Neighborhood vibe (quiet/busy, residential/mixed-use, etc.)
+- Safety requirements and comfort levels
+
+**PROPERTY CHARACTERISTICS:**
+- Size requirements (bedrooms, bathrooms, square footage)
+- Building type preferences (apartment, house, condo, etc.)
+- Floor preferences, outdoor space needs
+- Parking requirements (street vs garage vs none)
+- Pet accommodation if applicable
+
+**LIFESTYLE & WORK PATTERNS:**
+- Work location and commute preferences/requirements
+- Work from home needs (office space, internet, noise levels)
+- Social patterns (hosting, entertaining, privacy needs)
+- Daily routines that impact housing needs
+
+**BUDGET & FINANCIAL:**
+- Absolute maximum budget (true dealbreaker)
+- Comfort range vs stretch range
+- Flexibility on price for the right place
+- Additional costs tolerance (utilities, parking, etc.)
+
+**TIMELINE & FLEXIBILITY:**
+- Must-move-by dates vs preferred dates
+- How much lead time needed for decisions
+- Seasonal preferences or constraints
+
+CONVERSATION GUIDELINES:
+- Ask follow-up questions to clarify specificity: "When you mention [specific area], is that a must-have or would you consider similar neighborhoods?"
+- Probe for underlying reasons: "What draws you to that area?" or "What would make you rule out a place?"
+- Validate captured information: "So it sounds like [X] is non-negotiable, but you're flexible on [Y] - is that right?"
+- Build on existing information rather than starting over
+- Use natural conversation flow while being thorough
+
+COMPLETION CRITERIA:
+Consider the profile complete when you have captured:
+✓ Clear dealbreakers vs preferences for location
+✓ Non-negotiable property requirements vs nice-to-haves
+✓ Budget constraints (absolute max vs comfort range)
+✓ Timeline requirements and flexibility levels
+✓ Key lifestyle factors that impact housing choice
+✓ Enough detail for another AI agent to make targeted recommendations
+
+Only say "done" when you have a rich, nuanced profile that goes beyond basic criteria to capture the user's flexibility levels and underlying motivations for their housing preferences.
+
 """

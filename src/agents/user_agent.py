@@ -24,12 +24,14 @@ logfire.instrument_pydantic_ai()
 
 
 class UserAgent:
+    is_new_session: bool
+
     _db_session: Session
     _user_session_id: str
     _user: User
     _agent_deps: UserAgentDependencies
+    _agent: Agent[UserAgentDependencies]
     _message_history: list[ModelMessage]
-    _is_new_session: bool
     _tools: list[ToolFuncEither[UserAgentDependencies]]
 
     def __init__(self, db_session: Session, user: User):
@@ -37,10 +39,14 @@ class UserAgent:
         self._user = user
         self._db_session = db_session
         self._agent_deps = UserAgentDependencies(db=db_session, user=user)
-        self._is_new_session = False
+        self.is_new_session = False
 
         self._load_or_create_session()
         self._tools = tools
+        self._agent = Agent(
+            model=self._model, deps_type=UserAgentDependencies, tools=self._tools
+        )
+        self._set_system_prompt(self._agent)
 
     def _load_or_create_session(self):
         """Load existing session or create new one for user"""
@@ -73,7 +79,7 @@ class UserAgent:
     def _create_new_session(self):
         self._user_session_id = str(uuid.uuid4())
         self._message_history = []
-        self._is_new_session = True
+        self.is_new_session = True
 
         user_session = (
             self._db_session.query(UserSession).filter_by(user_id=self._user.id).first()
@@ -110,18 +116,13 @@ class UserAgent:
         """
 
         # Determine if we need to start the conversation
-        should_agent_initiate = self._is_new_session and (
+        should_agent_initiate = self.is_new_session and (
             not user_prompt or not user_prompt.strip()
         )
 
         # For existing sessions, require user input
-        if not self._is_new_session and (not user_prompt or not user_prompt.strip()):
+        if not self.is_new_session and (not user_prompt or not user_prompt.strip()):
             raise ValueError("User prompt required for existing conversations")
-
-        agent = Agent(
-            model=self._model, deps_type=UserAgentDependencies, tools=self._tools
-        )
-        self._set_system_prompt(agent)
 
         # If agent should initiate the conversation run
         # the agent with empty prompt so the agent can start
@@ -129,7 +130,7 @@ class UserAgent:
         prompt_to_use = "" if should_agent_initiate else user_prompt
 
         try:
-            async with agent.iter(
+            async with self._agent.iter(
                 prompt_to_use,
                 deps=self._agent_deps,
                 message_history=self._message_history,
@@ -144,8 +145,8 @@ class UserAgent:
                     self._message_history = agent_run.result.all_messages()
                     self._save_message_history()
 
-                if self._is_new_session:
-                    self._is_new_session = False
+                if self.is_new_session:
+                    self.is_new_session = False
 
         except Exception as e:
             logger.error(f"Error during chat: {e}")

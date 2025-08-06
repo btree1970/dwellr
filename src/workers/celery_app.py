@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from celery import Celery
 
-from src.config import settings
+from src.core.config import settings
 
 
 def create_celery_app() -> Celery:

@@ -5,7 +5,7 @@ from typing import Any, Dict
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.database.db import Base
+from src.core.database import Base
 
 
 class ListingEvaluation(Base):

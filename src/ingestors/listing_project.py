@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup, Tag
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from src.database.db import get_db_session
+from src.core.database import get_db_session
 from src.ingestors.base_ingestor import BaseIngestor, SyncResult
 from src.models.listing import Listing, ListingType, PricePeriod
 

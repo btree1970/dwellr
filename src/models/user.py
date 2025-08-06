@@ -6,7 +6,7 @@ from sqlalchemy import JSON, DateTime, Float, Integer, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.database.db import Base
+from src.core.database import Base
 from src.models.listing import ListingType, PricePeriod
 
 

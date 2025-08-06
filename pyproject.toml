@@ -24,6 +24,9 @@ dependencies = [
     "pydantic-ai[logfire]>=0.4.7",
     "logfire[asyncpg]>=4.0.0",
     "rich>=14.1.0",
+    "supabase>=2.18.0",
+    "fastapi>=0.116.1",
+    "uvicorn>=0.35.0",
 ]
 
 [dependency-groups]

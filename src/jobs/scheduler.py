@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, Optional
 
-from src.database.db import get_db_session
+from src.core.database import get_db_session
 from src.jobs.job_types import JobType
 from src.models.task import Task
 from src.workers.tasks import app

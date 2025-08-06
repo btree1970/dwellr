@@ -6,7 +6,7 @@ from typing import Optional
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-from src.config import settings
+from src.core.config import settings
 from src.models.listing import Listing
 from src.models.user import User
 

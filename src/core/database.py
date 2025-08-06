@@ -6,27 +6,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy.orm.session import sessionmaker
 
-from src.config import settings
+from src.core.config import settings
 
-# Configure logging
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 engine = create_engine(settings.database_url, echo=False)
-
-# Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-# Base class for all models
 class Base(DeclarativeBase):
     pass
 
 
-# Database session management
 @contextmanager
 def get_db_session() -> Generator[Session, None, None]:
-    """Context manager for database sessions."""
     db: Session = SessionLocal()
     try:
         yield db
@@ -39,13 +33,9 @@ def get_db_session() -> Generator[Session, None, None]:
         db.close()
 
 
-# Database operations
 class DatabaseManager:
-    """Database management operations."""
-
     @staticmethod
     def init_db():
-        """Create all tables."""
         try:
             Base.metadata.create_all(bind=engine)
             logger.info("Database tables created successfully")
@@ -55,7 +45,6 @@ class DatabaseManager:
 
     @staticmethod
     def drop_db():
-        """Drop all tables."""
         try:
             Base.metadata.drop_all(bind=engine)
             logger.info("Database tables dropped successfully")
@@ -65,13 +54,11 @@ class DatabaseManager:
 
     @staticmethod
     def reset_db():
-        """Drop and recreate all tables."""
         DatabaseManager.drop_db()
         DatabaseManager.init_db()
 
     @staticmethod
     def check_connection():
-        """Check if database connection is working."""
         try:
             with engine.connect() as connection:
                 from sqlalchemy import text
@@ -84,5 +71,4 @@ class DatabaseManager:
             return False
 
 
-# Initialize database manager
 db_manager = DatabaseManager()

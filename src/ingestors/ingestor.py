@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Type
 
 import yaml
 
-from src.config import settings
+from src.core.config import settings
 from src.ingestors.base_ingestor import BaseIngestor, SyncResult
 from src.ingestors.listing_project import ListingProjectIngestor
 

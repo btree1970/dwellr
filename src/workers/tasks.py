@@ -5,7 +5,7 @@ from celery.exceptions import Retry
 from celery.utils.log import get_task_logger
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.database.db import get_db_session
+from src.core.database import get_db_session
 from src.jobs.job_types import JobType
 from src.models.task import Task
 from src.models.user import User

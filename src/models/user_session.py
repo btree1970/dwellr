@@ -5,7 +5,7 @@ from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
 from sqlalchemy import JSON, Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.database.db import Base
+from src.core.database import Base
 
 
 class UserSession(Base):

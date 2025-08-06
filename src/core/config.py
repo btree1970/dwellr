@@ -6,8 +6,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application configuration using Pydantic BaseSettings for type-safe environment variable handling."""
-
     # Database settings
     database_url: str = Field(
         default="sqlite:////tmp/dwell/dwell.db", description="Database connection URL"
@@ -17,6 +15,25 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = Field(
         default=None, description="OpenAI API key for AI features"
     )
+
+    # Supabase settings
+    supabase_url: Optional[str] = Field(
+        default=None, description="Supabase project URL"
+    )
+    supabase_anon_key: Optional[str] = Field(
+        default=None, description="Supabase anonymous/public key"
+    )
+    supabase_service_key: Optional[str] = Field(
+        default=None, description="Supabase service role key (for server-side)"
+    )
+
+    # API settings
+    api_cors_origins: list[str] = Field(
+        default=["http://localhost:3000", "http://localhost:8000"],
+        description="CORS allowed origins for API",
+    )
+    api_port: int = Field(default=8000, description="API server port")
+    api_host: str = Field(default="0.0.0.0", description="API server host")
 
     # Listings Project credentials
     listings_email: Optional[str] = Field(

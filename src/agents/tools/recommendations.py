@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic_ai import RunContext
 
 from src.agents.deps import UserAgentDependencies
-from src.services.listing_agent import ListingAgent
+from src.services.listing_service import ListingService
 
 
 class RecommendationRequest(BaseModel):
@@ -21,9 +21,9 @@ def get_listing_recommendations(
     """Get personalized listing recommendations for user"""
     try:
         request = RecommendationRequest(**params)
-        listing_agent = ListingAgent(ctx.deps.db)
+        listing_service = ListingService(ctx.deps.db)
 
-        recommendations = listing_agent.get_recommendations(
+        recommendations = listing_service.get_recommendations(
             ctx.deps.user, limit=request.limit
         )
 

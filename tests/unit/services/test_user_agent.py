@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.agents.user_agent import ConversationResponse, UserAgent
 from src.models.user import User
-from src.services.user_agent import ConversationResponse, UserAgent
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ class TestUserAgent:
         assert "$4000.0" in prompt
         assert "real estate broker" in prompt
 
-    @patch("src.services.user_agent.OpenAI")
+    @patch("src.agents.user_agent.OpenAI")
     def test_chat_first_message(self, mock_openai, user_agent, mock_openai_response):
         mock_client = MagicMock()
         mock_openai.return_value = mock_client
@@ -75,7 +75,7 @@ class TestUserAgent:
         assert user_agent.conversation_history[0]["role"] == "user"
         assert user_agent.conversation_history[1]["role"] == "assistant"
 
-    @patch("src.services.user_agent.OpenAI")
+    @patch("src.agents.user_agent.OpenAI")
     def test_chat_subsequent_message(
         self, mock_openai, user_agent, mock_openai_response
     ):
@@ -101,7 +101,7 @@ class TestUserAgent:
         assert result.extracted_preferences is None
         assert len(user_agent.conversation_history) == 2
 
-    @patch("src.services.user_agent.OpenAI")
+    @patch("src.agents.user_agent.OpenAI")
     def test_chat_completion(self, mock_openai, user_agent):
         mock_client = MagicMock()
         mock_openai.return_value = mock_client

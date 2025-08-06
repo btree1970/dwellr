@@ -3,7 +3,7 @@ from datetime import datetime
 from src.database.db import get_db_session
 from src.models.listing import Listing, ListingType, PricePeriod
 from src.models.user import User
-from src.services.listing_agent import ListingAgent
+from src.services.listing_service import ListingService
 
 
 class TestPriceNormalizationIntegration:
@@ -13,7 +13,7 @@ class TestPriceNormalizationIntegration:
         """Test filtering for user with monthly price preferences"""
         with get_db_session() as db:
             monthly_user = db.query(User).filter_by(id="user_monthly").first()
-            agent = ListingAgent(db=db, evaluator=None)
+            agent = ListingService(db=db, agent=None)
 
             candidates = agent._get_candidate_listings(monthly_user)
             candidate_ids = [listing.id for listing in candidates]
@@ -46,7 +46,7 @@ class TestPriceNormalizationIntegration:
         """Test filtering for user with daily price preferences"""
         with get_db_session() as db:
             daily_user = db.query(User).filter_by(id="user_daily").first()
-            agent = ListingAgent(db=db)
+            agent = ListingService(db=db)
 
             candidates = agent._get_candidate_listings(daily_user)
             candidate_ids = [listing.id for listing in candidates]
@@ -79,7 +79,7 @@ class TestPriceNormalizationIntegration:
         """Test filtering for user with weekly price preferences"""
         with get_db_session() as db:
             weekly_user = db.query(User).filter_by(id="user_weekly").first()
-            agent = ListingAgent(db=db)
+            agent = ListingService(db=db)
 
             candidates = agent._get_candidate_listings(weekly_user)
             candidate_ids = [listing.id for listing in candidates]
@@ -158,7 +158,7 @@ class TestPriceNormalizationIntegration:
             db.add(monthly_user)
             db.commit()
 
-            agent = ListingAgent(db=db)
+            agent = ListingService(db=db)
 
             # Get candidates for each user
             daily_candidates = agent._get_candidate_listings(daily_user)
@@ -216,7 +216,7 @@ class TestDateFlexibilityIntegration:
             # Get user with date flexibility
             flexible_user = db.query(User).filter_by(id="user_flexible").first()
 
-            agent = ListingAgent(db=db)
+            agent = ListingService(db=db)
             candidates = agent._get_candidate_listings(flexible_user)
             candidate_ids = [listing.id for listing in candidates]
 
@@ -262,7 +262,7 @@ class TestEdgeCases:
             db.add(cheap_listing)
             db.commit()
 
-            agent = ListingAgent(db=db)
+            agent = ListingService(db=db)
             candidates = agent._get_candidate_listings(restrictive_user)
 
             # Should return no candidates
@@ -301,7 +301,7 @@ class TestEdgeCases:
             db.add(daily_listing)
             db.commit()
 
-            agent = ListingAgent(db=db)
+            agent = ListingService(db=db)
             candidates = agent._get_candidate_listings(single_day_user)
 
             # Should find the daily listing

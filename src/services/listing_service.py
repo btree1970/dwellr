@@ -3,10 +3,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
+from src.agents.listing_agent import EvaluationResult, ListingAgent
 from src.models.listing import Listing
 from src.models.listing_evaluation import ListingEvaluation
 from src.models.user import User
-from src.services.listing_evaluator import EvaluationResult, ListingEvaluator
 
 
 class BudgetExceededException(Exception):
@@ -15,18 +15,18 @@ class BudgetExceededException(Exception):
     pass
 
 
-class ListingAgent:
-    """Digital real estate agent that finds, evaluates, and recommends listings for users"""
+class ListingService:
+    """Digital real estate service that finds, evaluates, and recommends listings for users"""
 
-    def __init__(self, db: Session, evaluator: Optional[ListingEvaluator] = None):
-        """Initialize the ListingAgent
+    def __init__(self, db: Session, agent: Optional[ListingAgent] = None):
+        """Initialize the ListingService
 
         Args:
             db: Database session to use for all operations
-            evaluator: ListingEvaluator instance (creates default if None)
+            agent: ListingAgent instance (creates default if None)
         """
         self.db = db
-        self.evaluator = evaluator or ListingEvaluator()
+        self.agent = agent or ListingAgent()
 
     def find_and_evaluate_listings(
         self, user: User, max_cost: float = 2.00
@@ -68,7 +68,7 @@ class ListingAgent:
                     break
 
                 # Evaluate listing
-                evaluation = self.evaluator.evaluate_listing(user, listing)
+                evaluation = self.agent.evaluate_listing(user, listing)
                 evaluations.append(evaluation)
                 total_cost += evaluation.cost_usd
 
@@ -292,9 +292,9 @@ class ListingAgent:
         Returns:
             Estimated cost in USD
         """
-        # Use average cost from evaluator's token costs
+        # Use average cost from agent's token costs
         # Estimate ~800 input tokens and ~100 output tokens per evaluation
-        model_costs = self.evaluator.token_costs.get(self.evaluator.model, {})
+        model_costs = self.agent.token_costs.get(self.agent.model, {})
         input_cost = 800 * model_costs.get("input", 0.0001)
         output_cost = 100 * model_costs.get("output", 0.0003)
         cost_per_evaluation = input_cost + output_cost

@@ -9,7 +9,7 @@ from src.database.db import get_db_session
 from src.jobs.job_types import JobType
 from src.models.task import Task
 from src.models.user import User
-from src.services.listing_agent import ListingAgent
+from src.services.listing_service import ListingService
 from src.workers.celery_app import create_celery_app
 
 logger = get_task_logger(__name__)
@@ -162,12 +162,12 @@ def evaluate_user_listings(self: Any, user_id: str) -> Dict[str, Any]:
         )
 
         try:
-            agent = ListingAgent(db)
+            service = ListingService(db)
 
             max_cost = user.evaluation_credits
 
             # TODO: Failures midway can still incur costs
-            stats = agent.find_and_evaluate_listings(user, max_cost=max_cost)
+            stats = service.find_and_evaluate_listings(user, max_cost=max_cost)
 
             actual_cost = stats.get("total_cost", 0.0)
             if actual_cost > 0:

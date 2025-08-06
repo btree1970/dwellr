@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
+from src.agents.listing_agent import EvaluationResult
 from src.database.db import get_db_session
 from src.models.user import User
-from src.services.listing_evaluator import EvaluationResult
 from src.workers.tasks import evaluate_user_listings
 from tests.fixtures.test_data import create_multiple_listings, create_user_with_credits
 
@@ -28,9 +28,7 @@ class TestEvaluationWorkflow:
             user_id = user.id
             listing_id = listings[0].id
 
-        with patch(
-            "src.services.listing_agent.ListingEvaluator"
-        ) as mock_evaluator_class:
+        with patch("src.services.listing_service.ListingAgent") as mock_evaluator_class:
             mock_evaluator = Mock()
             mock_eval_result = EvaluationResult(
                 user_id=user_id,
@@ -113,9 +111,7 @@ class TestEvaluationWorkflow:
             user_id = user.id
             listing_id = listings[0].id
 
-        with patch(
-            "src.services.listing_agent.ListingEvaluator"
-        ) as mock_evaluator_class:
+        with patch("src.services.listing_service.ListingAgent") as mock_evaluator_class:
             mock_evaluator = Mock()
             mock_eval_result = EvaluationResult(
                 user_id=user_id,

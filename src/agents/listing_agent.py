@@ -41,11 +41,11 @@ class EvaluationResult:
     evaluated_at: datetime
 
 
-class ListingEvaluator:
+class ListingAgent:
     def __init__(
         self, openai_api_key: Optional[str] = None, model: str = "gpt-4o-mini"
     ):
-        """Initialize the listing evaluator
+        """Initialize the listing agent
 
         Args:
             openai_api_key: OpenAI API key (defaults to settings)

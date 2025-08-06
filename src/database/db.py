@@ -1,8 +1,10 @@
 import logging
 from contextlib import contextmanager
+from typing import Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session
+from sqlalchemy.orm.session import sessionmaker
 
 from src.config import settings
 
@@ -23,9 +25,9 @@ class Base(DeclarativeBase):
 
 # Database session management
 @contextmanager
-def get_db_session():
+def get_db_session() -> Generator[Session, None, None]:
     """Context manager for database sessions."""
-    db = SessionLocal()
+    db: Session = SessionLocal()
     try:
         yield db
         db.commit()

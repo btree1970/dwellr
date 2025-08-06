@@ -9,7 +9,7 @@ os.environ["ENV"] = "test"
 # Add project root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.database.db import DatabaseManager, get_db_session
+from src.core.database import DatabaseManager, get_db_with_context
 from tests.fixtures.test_data import (
     create_equivalent_price_test_listings,
     create_multiple_listings,
@@ -70,7 +70,7 @@ def db_with_test_data(clean_database):
     listings = create_equivalent_price_test_listings()
     users = create_test_users()
 
-    with get_db_session() as db:
+    with get_db_with_context() as db:
         for listing in listings:
             db.add(listing)
         for user in users:

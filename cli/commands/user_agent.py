@@ -15,7 +15,7 @@ from rich.live import Live
 from rich.text import Text
 
 from src.agents.user_agent import UserAgent
-from src.database.db import get_db_session
+from src.core.database import get_db_with_context
 from src.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def add_user_agent_subparser(subparsers):
 async def handle_user_agent_commands(args):
     """Handle user agent chat commands."""
     try:
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             logger.info(f"Starting chat session for user: {args.user_id}")
 
             user_service = UserService(db)

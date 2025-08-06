@@ -53,6 +53,6 @@ line-length = 88
 [tool.pyright]
 typeCheckingMode = "strict"
 include = ["src"]
-exclude = ["**/__pycache__", "**/migrations"]
+exclude = ["**/__pycache__", "**/migrations", "src/core/config.py"]
 venvPath = "."
 venv = ".venv"

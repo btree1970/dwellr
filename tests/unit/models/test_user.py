@@ -48,7 +48,6 @@ class TestUserHardFilters:
         """Test basic hard filters without dates"""
         user = User(
             name="Test User",
-            email="test@example.com",
             min_price=2000.0,
             max_price=4000.0,
             price_period=PricePeriod.MONTH,
@@ -69,7 +68,6 @@ class TestUserHardFilters:
         """Test hard filters with date preferences"""
         user = User(
             name="Test User",
-            email="test@example.com",
             min_price=3000.0,
             max_price=5000.0,
             price_period=PricePeriod.MONTH,
@@ -89,7 +87,6 @@ class TestUserHardFilters:
         """Test that get_hard_filters() pre-calculates normalized price bounds"""
         user = User(
             name="Test User",
-            email="test@example.com",
             min_price=3000.0,
             max_price=5000.0,
             price_period=PricePeriod.MONTH,
@@ -113,7 +110,6 @@ class TestUserHardFilters:
         """Test get_hard_filters() with daily price preferences"""
         user = User(
             name="Test User",
-            email="test@example.com",
             min_price=100.0,
             max_price=200.0,
             price_period=PricePeriod.DAY,
@@ -132,7 +128,6 @@ class TestUserHardFilters:
         """Test get_hard_filters() with weekly price preferences"""
         user = User(
             name="Test User",
-            email="test@example.com",
             min_price=700.0,
             max_price=1200.0,
             price_period=PricePeriod.WEEK,
@@ -155,7 +150,6 @@ class TestUserStayDuration:
         """Test stay duration calculation"""
         user = User(
             name="Test User",
-            email="test@example.com",
             preferred_start_date=datetime(2025, 8, 1),
             preferred_end_date=datetime(2025, 8, 15),
         )
@@ -166,7 +160,6 @@ class TestUserStayDuration:
         """Test stay duration with missing dates"""
         user = User(
             name="Test User",
-            email="test@example.com",
             preferred_start_date=datetime(2025, 8, 1),
             preferred_end_date=None,
         )
@@ -177,7 +170,6 @@ class TestUserStayDuration:
         """Test stay duration for single day"""
         user = User(
             name="Test User",
-            email="test@example.com",
             preferred_start_date=datetime(2025, 8, 1),
             preferred_end_date=datetime(2025, 8, 2),
         )

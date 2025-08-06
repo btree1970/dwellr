@@ -90,7 +90,6 @@ def create_test_users():
         User(
             id="user_monthly",
             name="Monthly User",
-            email="monthly@test.com",
             min_price=3000.0,
             max_price=5000.0,
             price_period=PricePeriod.MONTH,
@@ -103,7 +102,6 @@ def create_test_users():
         User(
             id="user_daily",
             name="Daily User",
-            email="daily@test.com",
             min_price=100.0,
             max_price=175.0,
             price_period=PricePeriod.DAY,
@@ -116,7 +114,6 @@ def create_test_users():
         User(
             id="user_weekly",
             name="Weekly User",
-            email="weekly@test.com",
             min_price=700.0,
             max_price=1200.0,
             price_period=PricePeriod.WEEK,
@@ -129,7 +126,6 @@ def create_test_users():
         User(
             id="user_flexible",
             name="Flexible User",
-            email="flexible@test.com",
             min_price=2500.0,
             max_price=4500.0,
             price_period=PricePeriod.MONTH,
@@ -171,7 +167,6 @@ def create_simple_user(
     return User(
         id=user_id,
         name=f"Test User {user_id}",
-        email=f"{user_id}@test.com",
         min_price=min_price,
         max_price=max_price,
         price_period=period,
@@ -184,7 +179,6 @@ def create_simple_user(
 
 def create_user_with_credits(
     name: str = "Test User",
-    email: str = "test@example.com",
     credits: float = 5.00,
     preference_profile: str = "Looking for apartments",
     **kwargs,
@@ -192,7 +186,6 @@ def create_user_with_credits(
     """Create a user with evaluation credits - flexible for different test scenarios"""
     user_data = {
         "name": name,
-        "email": email,
         "evaluation_credits": credits,
         "preference_profile": preference_profile,
     }

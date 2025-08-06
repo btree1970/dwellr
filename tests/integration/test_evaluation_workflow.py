@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 from src.agents.listing_agent import EvaluationResult
-from src.database.db import get_db_session
+from src.core.database import get_db_with_context
 from src.models.user import User
 from src.workers.tasks import evaluate_user_listings
 from tests.fixtures.test_data import create_multiple_listings, create_user_with_credits
@@ -14,14 +14,13 @@ class TestEvaluationWorkflow:
     def test_end_to_end_evaluation_workflow(self, clean_database, celery_app):
         user: User = create_user_with_credits(
             name="Test User",
-            email="test@example.com",
             credits=5.00,
             preference_profile="Looking for apartments in downtown",
         )
 
         listings = create_multiple_listings(count=3, base_price=800.0)
 
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             db.add(user)
             db.add_all(listings)
             db.commit()
@@ -53,7 +52,7 @@ class TestEvaluationWorkflow:
             assert result["evaluations_completed"] > 0
             assert result["total_cost"] > 0.0
 
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             updated_user = db.query(User).filter_by(id=user_id).first()
             assert updated_user.evaluation_credits < 5.00
             assert updated_user.evaluation_credits > 0.0
@@ -61,12 +60,11 @@ class TestEvaluationWorkflow:
     def test_workflow_with_insufficient_credits(self, clean_database, celery_app):
         user = create_user_with_credits(
             name="Poor User",
-            email="poor@example.com",
             credits=0.05,
             preference_profile="Looking for cheap places",
         )
 
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             db.add(user)
             db.commit()
             user_id = user.id
@@ -80,12 +78,11 @@ class TestEvaluationWorkflow:
     def test_workflow_with_no_preference_profile(self, clean_database, celery_app):
         user = create_user_with_credits(
             name="No Prefs User",
-            email="noprefs@example.com",
             credits=5.00,
             preference_profile=None,
         )
 
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             db.add(user)
             db.commit()
             user_id = user.id
@@ -98,13 +95,12 @@ class TestEvaluationWorkflow:
     def test_real_credit_deduction_workflow(self, clean_database, celery_app):
         user = create_user_with_credits(
             name="Credit Test User",
-            email="credit@example.com",
             credits=2.00,
             preference_profile="Looking for affordable housing",
         )
         listings = create_multiple_listings(count=1, base_price=500.0)
 
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             db.add(user)
             db.add_all(listings)
             db.commit()
@@ -137,6 +133,6 @@ class TestEvaluationWorkflow:
             assert result["total_cost"] == 0.50
             assert result["remaining_credits"] == 1.50
 
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             updated_user = db.query(User).filter_by(id=user_id).first()
             assert updated_user.evaluation_credits == 1.50

@@ -1,7 +1,6 @@
+from src.core.config import settings
 from supabase import AsyncClientOptions
 from supabase._async.client import AsyncClient, create_client
-
-from src.core.config import settings
 
 
 async def get_supabase_client() -> AsyncClient:

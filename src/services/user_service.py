@@ -57,23 +57,36 @@ class UserService:
     def __init__(self, db: Session):
         self.db = db
 
-    # TODO: Figure out was we get authentication detail sorted out
-    def create_user(self, name: str, email: str, **kwargs: Any) -> User:
+    def create_user(self, name: str, **kwargs: Any) -> User:
+        """Create a new user (typically called during first authentication)"""
         try:
-            user = User(name=name, email=email, **kwargs)
+            user = User(name=name, **kwargs)
             self.db.add(user)
             self.db.commit()
             self.db.refresh(user)
             return user
-
         except IntegrityError as e:
             self.db.rollback()
-            if "email" in str(e):
-                raise UserValidationError(f"Email {email} already exists")
+            if "auth_user_id" in str(e):
+                raise UserValidationError("User already exists for this auth provider")
             raise UserValidationError(f"Database constraint violation: {e}")
         except Exception as e:
             self.db.rollback()
             raise UserServiceException(f"Error creating user: {e}")
+
+    def find_or_create_user(self, auth_user_id: str, name: str, **kwargs: Any) -> User:
+        """Find existing user by auth_user_id or create new one (for auth integration)"""
+        try:
+            # Try to find existing user
+            user = self.db.query(User).filter(User.auth_user_id == auth_user_id).first()
+            if user:
+                return user
+
+            # Create new user
+            return self.create_user(name=name, auth_user_id=auth_user_id, **kwargs)
+        except Exception as e:
+            self.db.rollback()
+            raise UserServiceException(f"Error finding or creating user: {e}")
 
     def get_user_by_id(self, user_id: str) -> User:
         user = self.db.query(User).filter(User.id == user_id).first()

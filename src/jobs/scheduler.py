@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, Optional
 
-from src.core.database import get_db_session
+from src.core.database import get_db_with_context
 from src.jobs.job_types import JobType
 from src.models.task import Task
 from src.workers.tasks import app
@@ -17,7 +17,7 @@ class JobScheduler:
 
         task = Task(task_type=job_type.value, context=context or {}, status="pending")
 
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             db.add(task)
             db.commit()
             task_id = task.id

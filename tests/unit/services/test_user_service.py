@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from src.database.db import get_db_session
+from src.core.database import get_db_with_context
 from src.services.user_service import (
     UserNotFound,
     UserPreferenceUpdates,
@@ -13,62 +13,84 @@ from src.services.user_service import (
 
 class TestUserService:
     def test_create_user_basic(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            user = user_service.create_user(name="Test User", email="test@example.com")
+            user = user_service.create_user(name="Test User")
 
             assert user.name == "Test User"
-            assert user.email == "test@example.com"
             assert user.id is not None
+            assert user.evaluation_credits == 0.0  # default
 
     def test_create_user_with_kwargs(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
             user = user_service.create_user(
                 name="Test User",
-                email="test@example.com",
-                phone="555-1234",
                 occupation="Engineer",
+                bio="Software engineer with passion for tech",
+                evaluation_credits=10.0,
             )
 
             assert user.name == "Test User"
-            assert user.email == "test@example.com"
-            assert user.phone == "555-1234"
             assert user.occupation == "Engineer"
-
-    def test_create_user_duplicate_email(self, clean_database):
-        with get_db_session() as db:
-            user_service = UserService(db)
-            user_service.create_user(name="User 1", email="test@example.com")
-
-            with pytest.raises(UserValidationError, match="already exists"):
-                user_service.create_user(name="User 2", email="test@example.com")
+            assert user.bio == "Software engineer with passion for tech"
+            assert user.evaluation_credits == 10.0
 
     def test_get_user_by_id(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            created_user = user_service.create_user(
-                name="Test User", email="test@example.com"
-            )
+            created_user = user_service.create_user(name="Test User")
 
             retrieved_user = user_service.get_user_by_id(created_user.id)
             assert retrieved_user.id == created_user.id
             assert retrieved_user.name == "Test User"
-            assert retrieved_user.email == "test@example.com"
 
     def test_get_user_by_id_not_found(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
 
             with pytest.raises(UserNotFound):
                 user_service.get_user_by_id("nonexistent-id")
 
+    def test_find_or_create_user_creates_new(self, clean_database):
+        with get_db_with_context() as db:
+            user_service = UserService(db)
+            user = user_service.find_or_create_user(
+                auth_user_id="auth123", name="Test User", evaluation_credits=5.0
+            )
+
+            assert user.name == "Test User"
+            assert user.auth_user_id == "auth123"
+            assert user.evaluation_credits == 5.0
+            assert user.id is not None
+
+    def test_find_or_create_user_finds_existing(self, clean_database):
+        with get_db_with_context() as db:
+            user_service = UserService(db)
+
+            # Create a user first
+            original_user = user_service.create_user(
+                name="Original User", auth_user_id="auth123", evaluation_credits=10.0
+            )
+
+            # Try to find_or_create with same auth_user_id
+            found_user = user_service.find_or_create_user(
+                auth_user_id="auth123",
+                name="Different Name",  # This should be ignored
+                evaluation_credits=20.0,  # This should be ignored
+            )
+
+            assert found_user.id == original_user.id
+            assert found_user.name == "Original User"  # Original name preserved
+            assert found_user.evaluation_credits == 10.0  # Original credits preserved
+            assert found_user.auth_user_id == "auth123"
+
 
 class TestUpdateUserPreferences:
     def test_update_basic_fields(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            user = user_service.create_user(name="Test User", email="test@example.com")
+            user = user_service.create_user(name="Test User")
 
             updates = UserPreferenceUpdates(
                 min_price=1000.0,
@@ -84,12 +106,11 @@ class TestUpdateUserPreferences:
                 updated_user.preference_profile
                 == "Looking for a quiet neighborhood with good transit access"
             )
-            assert updated_user.email == "test@example.com"  # unchanged
 
     def test_update_price_preferences(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            user = user_service.create_user(name="Test User", email="test@example.com")
+            user = user_service.create_user(name="Test User")
 
             updates = UserPreferenceUpdates(min_price=1000.0, max_price=3000.0)
 
@@ -99,9 +120,9 @@ class TestUpdateUserPreferences:
             assert updated_user.max_price == 3000.0
 
     def test_update_date_preferences(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            user = user_service.create_user(name="Test User", email="test@example.com")
+            user = user_service.create_user(name="Test User")
 
             start_date = datetime(2024, 1, 1)
             end_date = datetime(2024, 2, 1)
@@ -119,11 +140,9 @@ class TestUpdateUserPreferences:
             assert updated_user.date_flexibility_days == 7
 
     def test_partial_update(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            user = user_service.create_user(
-                name="Test User", email="test@example.com", phone="555-0000"
-            )
+            user = user_service.create_user(name="Test User", occupation="Engineer")
 
             # Set some initial preferences
             user.max_price = 2000.0
@@ -134,12 +153,12 @@ class TestUpdateUserPreferences:
 
             assert updated_user.min_price == 1500.0
             assert updated_user.max_price == 2000.0  # unchanged
-            assert updated_user.email == "test@example.com"  # unchanged
+            assert updated_user.occupation == "Engineer"  # unchanged
 
     def test_tracking_fields_updated(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            user = user_service.create_user(name="Test User", email="test@example.com")
+            user = user_service.create_user(name="Test User")
 
             original_version = user.preference_version
 
@@ -151,9 +170,9 @@ class TestUpdateUserPreferences:
             assert updated_user.last_preference_update > user.created_at
 
     def test_price_range_validation_error(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            user = user_service.create_user(name="Test User", email="test@example.com")
+            user = user_service.create_user(name="Test User")
 
             updates = UserPreferenceUpdates(min_price=3000.0, max_price=1000.0)
 
@@ -163,9 +182,9 @@ class TestUpdateUserPreferences:
                 user_service.update_user_preferences(user.id, updates)
 
     def test_date_range_validation_error(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            user = user_service.create_user(name="Test User", email="test@example.com")
+            user = user_service.create_user(name="Test User")
 
             start_date = datetime(2024, 2, 1)
             end_date = datetime(2024, 1, 1)
@@ -180,9 +199,9 @@ class TestUpdateUserPreferences:
                 user_service.update_user_preferences(user.id, updates)
 
     def test_cross_field_validation_with_existing_data(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
-            user = user_service.create_user(name="Test User", email="test@example.com")
+            user = user_service.create_user(name="Test User")
 
             # Set existing max_price
             user.max_price = 2000.0
@@ -197,7 +216,7 @@ class TestUpdateUserPreferences:
                 user_service.update_user_preferences(user.id, updates)
 
     def test_user_not_found(self, clean_database):
-        with get_db_session() as db:
+        with get_db_with_context() as db:
             user_service = UserService(db)
 
             updates = UserPreferenceUpdates(min_price=1000.0)
@@ -219,11 +238,4 @@ class TestUpdateUserPreferences:
 
     def test_pydantic_forbids_extra_fields(self):
         with pytest.raises(ValueError, match="Extra inputs are not permitted"):
-            UserPreferenceUpdates(name="Test User", email="test@example.com")
-
-    def test_pydantic_forbids_onboarding_fields(self):
-        onboarding_fields = ["name", "email", "phone", "occupation", "bio"]
-
-        for field in onboarding_fields:
-            with pytest.raises(ValueError, match="Extra inputs are not permitted"):
-                UserPreferenceUpdates(**{field: "test value"})
+            UserPreferenceUpdates(invalid_field="test value")

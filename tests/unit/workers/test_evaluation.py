@@ -8,13 +8,12 @@ class TestEvaluation:
     def test_user_eligibility_filtering(self):
         user_sufficient_credits = create_user_with_credits(
             name="Good User",
-            email="good@test.com",
             credits=1.00,
             preference_profile="Looking for apartments",
         )
 
         with (
-            patch("src.workers.tasks.get_db_session") as mock_get_db,
+            patch("src.workers.tasks.get_db_with_context") as mock_get_db,
             patch("src.workers.tasks.app.send_task") as mock_send_task,
         ):
             mock_db = Mock()
@@ -40,14 +39,11 @@ class TestEvaluation:
 
     def test_task_coordination_logic(self):
         users = [
-            create_user_with_credits(
-                name=f"User {i}", email=f"user{i}@test.com", credits=2.00
-            )
-            for i in range(3)
+            create_user_with_credits(name=f"User {i}", credits=2.00) for i in range(3)
         ]
 
         with (
-            patch("src.workers.tasks.get_db_session") as mock_get_db,
+            patch("src.workers.tasks.get_db_with_context") as mock_get_db,
             patch("src.workers.tasks.app.send_task") as mock_send_task,
         ):
             mock_db = Mock()
@@ -75,19 +71,13 @@ class TestEvaluation:
 
     def test_task_creation_error_handling(self):
         users = [
-            create_user_with_credits(
-                name="User 1", email="user1@test.com", credits=2.00
-            ),
-            create_user_with_credits(
-                name="User 2", email="user2@test.com", credits=3.00
-            ),
-            create_user_with_credits(
-                name="User 3", email="user3@test.com", credits=1.50
-            ),
+            create_user_with_credits(name="User 1", credits=2.00),
+            create_user_with_credits(name="User 2", credits=3.00),
+            create_user_with_credits(name="User 3", credits=1.50),
         ]
 
         with (
-            patch("src.workers.tasks.get_db_session") as mock_get_db,
+            patch("src.workers.tasks.get_db_with_context") as mock_get_db,
             patch("src.workers.tasks.app.send_task") as mock_send_task,
         ):
             mock_db = Mock()
@@ -126,26 +116,23 @@ class TestEvaluation:
         users_at_threshold = [
             create_user_with_credits(
                 name="At Threshold",
-                email="at@test.com",
                 credits=0.10,
                 preference_profile="Looking",
             ),
             create_user_with_credits(
                 name="Above Threshold",
-                email="above@test.com",
                 credits=0.11,
                 preference_profile="Looking",
             ),
             create_user_with_credits(
                 name="Below Threshold",
-                email="below@test.com",
                 credits=0.09,
                 preference_profile="Looking",
             ),
         ]
 
         with (
-            patch("src.workers.tasks.get_db_session") as mock_get_db,
+            patch("src.workers.tasks.get_db_with_context") as mock_get_db,
             patch("src.workers.tasks.app.send_task") as mock_send_task,
         ):
             mock_db = Mock()
@@ -167,7 +154,7 @@ class TestEvaluation:
             assert result["tasks_created"] == 2
 
     def test_empty_user_set_handling(self):
-        with patch("src.workers.tasks.get_db_session") as mock_get_db:
+        with patch("src.workers.tasks.get_db_with_context") as mock_get_db:
             mock_db = Mock()
             mock_get_db.return_value.__enter__.return_value = mock_db
 

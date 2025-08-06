@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup, Tag
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from src.core.database import get_db_session
+from src.core.database import get_db_with_context
 from src.ingestors.base_ingestor import BaseIngestor, SyncResult
 from src.models.listing import Listing, ListingType, PricePeriod
 
@@ -190,7 +190,7 @@ class ListingProjectIngestor(BaseIngestor):
                 stats["total_processed"] += 1
 
                 # Check if listing already exists in database (deduplication)
-                with get_db_session() as db:
+                with get_db_with_context() as db:
                     db: Session
                     existing_listing = (
                         db.query(Listing).filter(Listing.id == listing_id).first()
@@ -234,7 +234,7 @@ class ListingProjectIngestor(BaseIngestor):
 
                         # Store directly to database
                         try:
-                            with get_db_session() as db:
+                            with get_db_with_context() as db:
                                 db: Session
                                 db.add(listing)
                                 db.commit()

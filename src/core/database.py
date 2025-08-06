@@ -20,7 +20,7 @@ class Base(DeclarativeBase):
 
 
 @contextmanager
-def get_db_session() -> Generator[Session, None, None]:
+def get_db_with_context() -> Generator[Session, None, None]:
     db: Session = SessionLocal()
     try:
         yield db
@@ -28,6 +28,18 @@ def get_db_session() -> Generator[Session, None, None]:
     except Exception as e:
         db.rollback()
         logger.error(f"Database error: {e}")
+        raise
+    finally:
+        db.close()
+
+
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency for database session"""
+    db: Session = SessionLocal()
+    try:
+        yield db
+    except Exception:
+        db.rollback()
         raise
     finally:
         db.close()

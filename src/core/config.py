@@ -7,9 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # Database settings
-    database_url: str = Field(
-        default="sqlite:////tmp/dwell/dwell.db", description="Database connection URL"
-    )
+    database_url: str = Field(description="Database connection URL")
 
     # OpenAI settings
     openai_api_key: Optional[str] = Field(

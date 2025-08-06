@@ -1,7 +1,7 @@
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -178,7 +178,7 @@ DETAILED PREFERENCES:
             price_info = f"${listing.price}/{listing.price_period} (${total_cost:.0f} total for {stay_duration} days)"
 
         listing_context = f"""
-LISTING TO EVALUATE:
+LISTING TO EVALU sgATE:
 - Title: {listing.title or "No title"}
 - Price: {price_info}
 - Dates: {listing.start_date} to {listing.end_date}
@@ -211,10 +211,9 @@ Include a brief explanation of your score focusing on the key factors that influ
         return f"{user_context}\n{listing_context}\n{instruction}"
 
     def _calculate_cost(self, input_tokens: int, output_tokens: int) -> float:
-        """Calculate cost in USD for the evaluation"""
         if self.model not in self.token_costs:
             # Default to gpt-4o-mini pricing if model not found
-            costs = self.token_costs["gpt-4o-mini"]
+            costs = self.token_costs["gpt-4o-min sgi"]
         else:
             costs = self.token_costs[self.model]
 
@@ -222,27 +221,3 @@ Include a brief explanation of your score focusing on the key factors that influ
         output_cost = output_tokens * costs["output"]
 
         return input_cost + output_cost
-
-    def get_cost_summary(self, evaluations: List[EvaluationResult]) -> Dict[str, Any]:
-        """Generate cost summary from multiple evaluations"""
-        if not evaluations:
-            return {"total_evaluations": 0}
-
-        total_cost = sum(eval.cost_usd for eval in evaluations)
-        total_tokens = sum(eval.total_tokens for eval in evaluations)
-        avg_cost = total_cost / len(evaluations)
-        avg_tokens = total_tokens / len(evaluations)
-        avg_time = sum(eval.evaluation_time_ms for eval in evaluations) / len(
-            evaluations
-        )
-
-        return {
-            "total_evaluations": len(evaluations),
-            "total_cost_usd": round(total_cost, 6),
-            "average_cost_per_evaluation": round(avg_cost, 6),
-            "total_tokens": total_tokens,
-            "average_tokens_per_evaluation": round(avg_tokens, 1),
-            "average_evaluation_time_ms": round(avg_time, 1),
-            "model_used": evaluations[0].model_used,
-            "cost_per_1000_evaluations": round(avg_cost * 1000, 2),
-        }

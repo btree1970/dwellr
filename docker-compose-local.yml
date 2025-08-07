@@ -1,17 +1,6 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: dwell
-      POSTGRES_USER: dwell_user
-      POSTGRES_PASSWORD: dwell_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   redis:
     image: redis:alpine
     ports:
@@ -19,19 +8,37 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  worker:
+  dwell-app:
     build: .
     depends_on:
       - redis
-      - postgres
     environment:
       - ENV=local
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      - REDIS_URL=redis://redis:6379/0
+      - SUPABASE_URL=http://host.docker.internal:54321
+      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+      - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
     ports:
+      - "8000:8000"
       - "5555:5555"
     volumes:
-      - ./logs:/app/logs
+      - ./logs:/var/log/supervisor
+      - .:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   redis_data:
-  postgres_data:

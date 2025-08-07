@@ -7,6 +7,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    supervisor \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install uv
@@ -15,12 +17,15 @@ COPY pyproject.toml uv.lock ./
 
 RUN uv sync --frozen --no-dev
 
-# Copy application code
+RUN mkdir -p /var/log/supervisor
+
 COPY . .
 
-RUN chmod +x start.sh
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose port for Flower UI
+# server
+EXPOSE 8000
+# flower ui
 EXPOSE 5555
 
-CMD ["./start.sh"]
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

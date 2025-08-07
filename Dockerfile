@@ -15,7 +15,7 @@ RUN pip install uv
 
 COPY pyproject.toml uv.lock ./
 
-RUN uv sync --frozen --no-dev
+RUN uv sync --no-dev --frozen --no-cache
 
 RUN mkdir -p /var/log/supervisor
 

@@ -42,6 +42,7 @@ docker-compose -f docker-compose-local.yml up --build
 - **Background Processing**: Async task processing with Celery
 - **JWT Authentication**: Supabase-based user auth with automatic user creation
 - **Real-time Monitoring**: Flower UI for task monitoring
+- **Chat API**: Real-time conversational interface with streaming responses
 
 ## Development
 

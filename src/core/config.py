@@ -1,6 +1,7 @@
 import os
 from typing import Optional
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -94,5 +95,20 @@ class Settings(BaseSettings):
         """Get effective Celery result backend URL (falls back to redis_url)"""
         return self.celery_result_backend or self.redis_url
 
+
+# Load environment variables from .env files
+def _load_env_files():
+    """Load environment variables from .env files based on ENV variable"""
+    env = os.getenv("ENV", "development")
+    if env == "test":
+        load_dotenv(".env.test", override=True)
+    elif env == "local":
+        load_dotenv(".env.local", override=True)
+    else:
+        load_dotenv(".env", override=True)
+
+
+# Load env files before creating settings instance
+_load_env_files()
 
 settings = Settings()

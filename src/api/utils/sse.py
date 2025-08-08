@@ -53,3 +53,17 @@ def format_sse_event(data: Dict[str, Any]) -> str:
     """
     json_data = json.dumps(data, default=str)
     return f"data: {json_data}\n\n"
+
+
+def create_error_sse_event(error_message: str) -> str:
+    """
+    Create an SSE formatted error event.
+
+    Args:
+        error_message: Error message to send
+
+    Returns:
+        str: SSE formatted error event
+    """
+    error_event = {"type": "error", "error": error_message}
+    return format_sse_event(error_event)

@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, List, Optional
 
 import logfire
 from pydantic_ai import Agent, RunContext
@@ -17,6 +17,7 @@ from pydantic_ai.tools import ToolFuncEither
 from sqlalchemy.orm.session import Session
 
 from src.agents.deps import UserAgentDependencies
+from src.agents.message_formatter import ChatMessage, MessageHistoryFormatter
 from src.agents.stream_events import (
     TextChunkEvent,
     TextStartEvent,
@@ -178,8 +179,15 @@ class UserAgent:
             logger.error(f"Error during chat: {e}")
             raise e
 
-    def get_message_history(self) -> list[ModelMessage]:
-        return self._message_history
+    def get_message_history(self) -> List[ChatMessage]:
+        """Get formatted message history as ChatMessage objects."""
+        formatter = MessageHistoryFormatter(truncate_content=200, truncate_args=100)
+        return formatter.format_history(self._message_history)
+
+    @property
+    def session_id(self) -> str:
+        """Get the current session ID."""
+        return self._user_session_id
 
     def _save_message_history(self):
         """Save current message history to database"""

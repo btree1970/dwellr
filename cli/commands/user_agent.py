@@ -1,11 +1,5 @@
 import logging
 
-from pydantic_ai.messages import (
-    ModelRequest,
-    ModelResponse,
-    ToolCallPart,
-    UserPromptPart,
-)
 from rich.console import Console
 from rich.live import Live
 from rich.text import Text
@@ -45,53 +39,24 @@ async def handle_user_agent_commands(args):
                 console.print("\n[bold blue]📜 Conversation History[/bold blue]")
 
                 for message in message_history:
-                    try:
-                        if isinstance(message, ModelRequest) and message.parts:
-                            part = message.parts[0]
-                            if isinstance(part, UserPromptPart):
-                                content = part.content
-                                # Truncate long messages
-                                if len(content) > 200:
-                                    content = content[:197] + "..."
+                    if message.role == "user":
+                        user_text = Text(f"😊 You: {message.content}")
+                        user_text.stylize("cyan")
+                        console.print(user_text)
 
-                                user_text = Text(f"😊 You: {content}")
-                                user_text.stylize("cyan")
-                                console.print(user_text)
+                    elif message.role == "assistant":
+                        bot_text = Text(f"🤖 Bot: {message.content}")
+                        bot_text.stylize("green")
+                        console.print(bot_text)
 
-                        elif isinstance(message, ModelResponse) and message.parts:
-                            for part in message.parts:
-                                if hasattr(part, "content"):
-                                    content = part.content
-                                    # Truncate long messages
-                                    if len(content) > 200:
-                                        content = content[:197] + "..."
-
-                                    bot_text = Text(f"🤖 Bot: {content}")
-                                    bot_text.stylize("green")
-                                    console.print(bot_text)
-
-                                elif isinstance(part, ToolCallPart):
-                                    # Format tool call display
-                                    args_str = ""
-                                    if part.args:
-                                        if isinstance(part.args, dict):
-                                            args_str = str(part.args)
-                                        else:
-                                            args_str = part.args
-                                        # Truncate long args
-                                        if len(args_str) > 100:
-                                            args_str = args_str[:97] + "..."
-
-                                    tool_text = Text(
-                                        f"🔧 Tool Call: {part.tool_name}({args_str})"
-                                    )
-                                    tool_text.stylize("yellow")
-                                    console.print(tool_text)
-
-                    except (IndexError, AttributeError) as e:
-                        # Skip malformed messages
-                        logger.debug(f"Skipping malformed message: {e}")
-                        continue
+                        # Show tool calls if any
+                        if message.tool_calls:
+                            for tool_call in message.tool_calls:
+                                tool_text = Text(
+                                    f"🔧 Tool Call: {tool_call.tool_name}({tool_call.args})"
+                                )
+                                tool_text.stylize("yellow")
+                                console.print(tool_text)
 
                 console.print("\n" + "─" * 50 + "\n")
 

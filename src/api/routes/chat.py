@@ -1,15 +1,8 @@
 import logging
-from typing import Any, Dict, List
+from typing import List
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from pydantic_ai.messages import (
-    ModelRequest,
-    ModelResponse,
-    TextPart,
-    ToolCallPart,
-    UserPromptPart,
-)
 from sqlalchemy.orm import Session
 
 from src.agents.user_agent import UserAgent
@@ -21,7 +14,6 @@ from src.api.schemas.chat import (
     ChatMessageRequest,
 )
 from src.api.utils.sse import create_error_sse_event, stream_agent_response
-from src.models.user_session import UserSession
 
 logger = logging.getLogger(__name__)
 
@@ -97,78 +89,41 @@ async def get_chat_history(
     Get the conversation history for the current user's session.
     """
     try:
-        # Get user session
-        user_session = db.query(UserSession).filter_by(user_id=current_user.id).first()
+        user_agent = UserAgent(db_session=db, user=current_user)
 
-        if not user_session or not user_session.session_id:
-            # No session exists yet - return empty history
+        chat_messages = user_agent.get_message_history()
+
+        if not chat_messages:
             return ChatHistoryResponse(
                 messages=[],
                 session_id="",
                 total_messages=0,
             )
 
-        # Get message history
-        message_history = user_session.get_message_history() or []
-
-        # Convert pydantic-ai messages to API format
+        # Convert ChatMessage to API format
         api_messages: List[ChatHistoryMessage] = []
-        for message in message_history:
-            try:
-                # Handle ModelRequest (user messages)
-                if isinstance(message, ModelRequest) and message.parts:
-                    part = message.parts[0]
-                    if isinstance(part, UserPromptPart):
-                        # Assume content is always a string for our use case
-                        content = str(part.content) if part.content else ""
-                        api_message = ChatHistoryMessage(
-                            role="user",
-                            content=content,
-                            tool_calls=None,
-                            timestamp=None,
-                        )
-                        api_messages.append(api_message)
+        for message in chat_messages:
+            # Convert tool calls to API format
+            tool_calls_dict = None
+            if message.tool_calls:
+                tool_calls_dict = [
+                    {"tool_name": tool_call.tool_name, "args": tool_call.args}
+                    for tool_call in message.tool_calls
+                ]
 
-                # Handle ModelResponse (assistant messages)
-                elif isinstance(message, ModelResponse) and message.parts:
-                    # Collect all text content from response parts
-                    text_content: List[str] = []
-                    tool_calls: List[Dict[str, Any]] = []
+            api_message = ChatHistoryMessage(
+                role=message.role,
+                content=message.content,
+                tool_calls=tool_calls_dict,
+                timestamp=None,
+            )
+            api_messages.append(api_message)
 
-                    for part in message.parts:
-                        # Handle specific part types we know about
-                        if isinstance(part, TextPart):
-                            text_content.append(part.content)
-                        elif isinstance(part, ToolCallPart):
-                            tool_calls.append(
-                                {
-                                    "tool_name": part.tool_name,
-                                    "args": (
-                                        part.args
-                                        if isinstance(part.args, dict)
-                                        else str(part.args)
-                                    ),
-                                }
-                            )
-
-                    # Create assistant message
-                    if text_content or tool_calls:
-                        api_message = ChatHistoryMessage(
-                            role="assistant",
-                            content=" ".join(text_content) if text_content else "",
-                            tool_calls=tool_calls if tool_calls else None,
-                            timestamp=None,
-                        )
-                        api_messages.append(api_message)
-
-            except Exception as e:
-                logger.warning(f"Failed to parse message: {e}")
-                # Skip malformed messages rather than failing entirely
-                continue
+        session_id = user_agent.session_id
 
         return ChatHistoryResponse(
             messages=api_messages,
-            session_id=user_session.session_id,
+            session_id=session_id,
             total_messages=len(api_messages),
         )
 

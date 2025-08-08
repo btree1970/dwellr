@@ -3,10 +3,6 @@ import logging
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
-    PartDeltaEvent,
-    PartStartEvent,
-    TextPart,
-    TextPartDelta,
     ToolCallPart,
     UserPromptPart,
 )
@@ -116,19 +112,33 @@ async def handle_user_agent_commands(args):
                         break
 
                 response_text = ""
-                with Live("🤖: ", refresh_per_second=15) as live:
-                    async for stream in user_agent.chat(user_prompt=user_prompt):
-                        if isinstance(stream, PartDeltaEvent):
-                            delta = stream.delta
-                            if isinstance(delta, TextPartDelta):
-                                response_text += delta.content_delta
+                try:
+                    with Live("🤖: ", refresh_per_second=15) as live:
+                        async for event in user_agent.chat(user_prompt=user_prompt):
+                            event_data = event.model_dump()
+
+                            if event_data["type"] == "tool_call":
+                                # Show tool call
+                                tool_text = f"🔧 {event_data['tool_name']}"
+                                console.print(tool_text, style="yellow")
+
+                            elif event_data["type"] == "text_start":
+                                # Start text response
+                                response_text = event_data["content"]
                                 live.update(f"🤖: {response_text}")
 
-                        elif isinstance(stream, PartStartEvent):
-                            part = stream.part
-                            if isinstance(part, TextPart):
-                                response_text += part.content
+                            elif event_data["type"] == "text_chunk":
+                                # Add to ongoing text response
+                                response_text += event_data["content"]
                                 live.update(f"🤖: {response_text}")
+
+                except Exception as e:
+                    logger.error(f"Stream error: {e}")
+                    console.print(f"\n❌ Error: {e}", style="red")
+                    console.print(
+                        "💡 You can try asking again or rephrase your question.",
+                        style="dim",
+                    )
 
                 print()  # Add newline after response completes
             # Create dependencies and start chat

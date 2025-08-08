@@ -3,7 +3,7 @@ import logging
 
 from cli.commands.task import add_task_subparser, handle_task_command
 from cli.commands.user_agent import add_user_agent_subparser, handle_user_agent_commands
-from src.database.db import db_manager
+from src.core.database import db_manager
 
 logging.basicConfig(
     level=logging.INFO,

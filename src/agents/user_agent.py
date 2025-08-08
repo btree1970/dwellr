@@ -5,14 +5,24 @@ from typing import AsyncGenerator, Optional
 import logfire
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import (
-    AgentStreamEvent,
     ModelMessage,
     ModelMessagesTypeAdapter,
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+    TextPartDelta,
+    ToolCallPart,
 )
 from pydantic_ai.tools import ToolFuncEither
 from sqlalchemy.orm.session import Session
 
 from src.agents.deps import UserAgentDependencies
+from src.agents.stream_events import (
+    TextChunkEvent,
+    TextStartEvent,
+    ToolCallEvent,
+    UserAgentStreamEvent,
+)
 from src.agents.tools import tools
 from src.models.user import User
 from src.models.user_session import UserSession
@@ -42,6 +52,7 @@ class UserAgent:
         self.is_new_session = False
 
         self._load_or_create_session()
+
         self._tools = tools
         self._agent = Agent(
             model=self._model, deps_type=UserAgentDependencies, tools=self._tools
@@ -108,7 +119,7 @@ class UserAgent:
 
     async def chat(
         self, user_prompt: Optional[str] = None
-    ) -> AsyncGenerator[AgentStreamEvent, None]:
+    ) -> AsyncGenerator[UserAgentStreamEvent, None]:
         """
         Chat with the agent. For new sessions, agent will initiate if no prompt provided.
         For existing sessions, user_prompt is required.
@@ -138,8 +149,23 @@ class UserAgent:
                 async for node in agent_run:
                     if Agent.is_model_request_node(node):
                         async with node.stream(agent_run.ctx) as handle_stream:
-                            async for content in handle_stream:
-                                yield content
+                            async for event in handle_stream:
+                                if isinstance(event, PartStartEvent):
+                                    if isinstance(event.part, TextPart):
+                                        # Text response starting
+                                        yield TextStartEvent(content=event.part.content)
+                                    elif isinstance(event.part, ToolCallPart):
+                                        # Tool call starting
+                                        yield ToolCallEvent(
+                                            tool_name=event.part.tool_name
+                                        )
+
+                                elif isinstance(event, PartDeltaEvent):
+                                    if isinstance(event.delta, TextPartDelta):
+                                        yield TextChunkEvent(
+                                            content=event.delta.content_delta
+                                        )
+                                    # Skip ToolCallPartDelta - we don't expose args
 
                 if agent_run.result:
                     self._message_history = agent_run.result.all_messages()
@@ -151,8 +177,6 @@ class UserAgent:
         except Exception as e:
             logger.error(f"Error during chat: {e}")
             raise e
-
-        return
 
     def get_message_history(self) -> list[ModelMessage]:
         return self._message_history

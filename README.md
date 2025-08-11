@@ -46,6 +46,12 @@ docker-compose -f docker-compose-local.yml up --build
 
 ## Development
 
+### AI Agent Configuration
+
+This project includes `AGENT.md` following the [AGENT.md RFC](https://agent.md/) standard, which provides comprehensive documentation for AI coding assistants. The following files are symlinked to AGENT.md for compatibility:
+- `CLAUDE.md` → Claude Code
+- `AGENTS.md` → OpenAI Codex
+
 ### Environment Setup
 
 ```bash

@@ -6,38 +6,47 @@
 
 ### Core Architecture
 
+- **Frontend**: Remix with SSR, TypeScript, Tailwind CSS, and Vite build system
 - **Backend**: FastAPI with async Python 3.11+, SQLAlchemy ORM, Pydantic validation
 - **AI Framework**: Pydantic AI for structured LLM interactions with streaming responses
 - **Task Queue**: Celery with Redis for background processing (evaluation, sync)
 - **Database**: PostgreSQL (production) / SQLite (development)
-- **Authentication**: Supabase JWT with automatic user creation
+- **Authentication**: Supabase JWT with cookie-based sessions (SSR) and automatic user creation
 - **Real-time**: Server-Sent Events for streaming chat responses
 
 ### Service Components
 
-1. **API Server** (`src/api/`) - FastAPI on port 8000
-2. **Celery Worker** (`src/workers/`) - Background task processing
-3. **Celery Beat** - Scheduled tasks (6-hour sync/evaluation cycles)
-4. **Flower** - Task monitoring UI on port 5555
-5. **Redis** - Message broker and cache
-6. **PostgreSQL/SQLite** - Primary data storage
+1. **Web Frontend** (`web/`) - Remix app with Vite dev server on port 5173
+2. **API Server** (`src/api/`) - FastAPI on port 8000
+3. **Celery Worker** (`src/workers/`) - Background task processing
+4. **Celery Beat** - Scheduled tasks (6-hour sync/evaluation cycles)
+5. **Flower** - Task monitoring UI on port 5555
+6. **Redis** - Message broker and cache
+7. **PostgreSQL/SQLite** - Primary data storage
 
 ### Data Flow
 
 1. **Ingestion**: External sources → Ingestors → Database
 2. **Evaluation**: New listings → Hard filters → AI scoring → Recommendations
-3. **Chat**: User input → Agent → Tools → Services → Streaming response
+3. **Chat**: Frontend → API → Agent → Tools → Services → Streaming response
+4. **Authentication**: Frontend → Supabase → Backend JWT validation
 
 ## Build & Commands
 
 ### Development Setup
 
 ```bash
+# Install system dependencies
+# Python (via UV) and Node.js 20+ required
+
 # Install UV package manager (if not installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install dependencies
+# Install Python dependencies
 uv sync
+
+# Install frontend dependencies
+cd web && npm install && cd ..
 
 # Copy environment configuration
 cp .env.example .env.local
@@ -45,6 +54,10 @@ cp .env.example .env.local
 
 # Start full development stack (recommended)
 ./local-dev.sh  # Starts Supabase + API + Workers + Flower with live logs
+
+# OR start services individually:
+# Backend: uv run uvicorn src.api.main:app --reload --port 8000
+# Frontend: cd web && npm run dev
 ```
 
 ### Core Commands
@@ -57,8 +70,23 @@ uv run celery -A src.workers.celery_app worker --loglevel=info  # Worker
 uv run celery -A src.workers.celery_app beat --loglevel=info  # Scheduler
 uv run celery -A src.workers.celery_app flower  # Monitoring UI
 
+# Frontend development server
+cd web && npm run dev  # Remix dev server on port 5173
+
 # Docker alternative
 docker-compose -f docker-compose-local.yml up --build
+```
+
+#### Frontend
+```bash
+# Frontend development
+cd web
+npm install  # Install dependencies
+npm run dev  # Start dev server
+npm run build  # Build for production
+npm run start  # Start production server
+npm run lint  # Lint code
+npm run typecheck  # Type checking
 ```
 
 #### Testing
@@ -436,6 +464,9 @@ ENV=local
 LOG_LEVEL=INFO
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 
+# Frontend Configuration
+API_BASE_URL=http://localhost:8000  # Backend API URL
+
 # AI Configuration
 AI_MODEL=gpt-4-turbo-preview
 AI_TEMPERATURE=0.7
@@ -579,10 +610,13 @@ async def chat_message(request: Request):
 ### Common Tasks
 
 ```bash
-# Start development
+# Start development (full stack)
 ./local-dev.sh
 
-# Run tests
+# Start frontend only
+cd web && npm run dev
+
+# Run backend tests
 uv run pytest tests/ -v
 
 # Format code
@@ -600,6 +634,9 @@ python dwell_cli.py user_agent --user-id test-user
 # Check API health
 curl http://localhost:8000/health
 
+# View frontend
+open http://localhost:5173
+
 # View database
 uv run python -c "from src.core.database import get_db; ..."
 ```
@@ -608,7 +645,7 @@ uv run python -c "from src.core.database import get_db; ..."
 
 | Issue | Solution |
 |-------|----------|
-| Port already in use | `lsof -i :8000` then `kill -9 <PID>` |
+| Port already in use | `lsof -i :8000` then `kill -9 <PID>` (API), `lsof -i :5173` (Frontend) |
 | Redis connection refused | Start Redis: `redis-server` or `brew services start redis` |
 | Database locked (SQLite) | Restart services, check for hanging connections |
 | Celery tasks not running | Check Redis connection, restart worker |
@@ -616,12 +653,16 @@ uv run python -c "from src.core.database import get_db; ..."
 | Import errors | Ensure `uv sync` completed, check PYTHONPATH |
 | Supabase auth fails | Verify SUPABASE_URL and SUPABASE_ANON_KEY |
 | OpenAI rate limits | Implement exponential backoff, check API quotas |
+| Frontend build fails | Check Node.js version (20+), run `npm install` in `web/` |
+| Frontend auth issues | Verify Supabase environment variables, check cookie settings |
+| API connection refused | Ensure API_BASE_URL points to running backend (http://localhost:8000) |
+| CORS errors | Update CORS_ORIGINS in backend to include frontend URL |
 
 ### Project Structure
 
 ```
 dwell/
-├── src/
+├── src/               # Python backend
 │   ├── api/           # FastAPI application
 │   │   ├── routes/    # API endpoints
 │   │   ├── schemas/   # Pydantic models for API
@@ -639,6 +680,15 @@ dwell/
 │   ├── services/      # Business logic
 │   ├── workers/       # Celery tasks
 │   └── ingestors/     # Data ingestion
+├── web/               # Remix frontend
+│   ├── app/           # Remix application
+│   │   ├── routes/    # Frontend routes
+│   │   ├── services/  # API & auth clients
+│   │   ├── root.tsx   # Root component
+│   │   └── entry.*.tsx  # Entry points
+│   ├── public/        # Static assets
+│   ├── package.json   # Frontend dependencies
+│   └── vite.config.ts # Build configuration
 ├── tests/             # Test suites
 ├── cli/               # CLI commands
 ├── logs/              # Application logs
@@ -654,3 +704,9 @@ dwell/
 - `ingestors.yaml` - Data source configuration
 - `supervisord.conf` - Production process management
 - `fly.toml` - Fly.io deployment configuration
+
+**Frontend:**
+- `web/package.json` - Frontend dependencies and scripts
+- `web/vite.config.ts` - Vite build configuration
+- `web/tailwind.config.ts` - Tailwind CSS configuration
+- `web/tsconfig.json` - TypeScript configuration

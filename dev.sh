@@ -10,6 +10,9 @@ cleanup() {
     echo "🛑 Shutting down development environment..."
     docker-compose -f docker-compose-local.yml down
     supabase stop
+    if [ ! -z "$FRONTEND_PID" ]; then
+        kill $FRONTEND_PID 2>/dev/null
+    fi
     echo "✅ Development environment stopped"
     exit 0
 }
@@ -35,6 +38,14 @@ fi
 # Start Supabase local stack (background)
 echo "📦 Starting Supabase services..."
 supabase start
+
+# Start frontend in background if it exists
+if [ -d "web" ]; then
+    echo "🎨 Starting frontend development server..."
+    cd web && npm run dev &
+    FRONTEND_PID=$!
+    cd ..
+fi
 
 echo ""
 echo "🏗️  Starting application services with live logs..."

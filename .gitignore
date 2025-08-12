@@ -36,3 +36,14 @@ htmlcov/
 
 # Logs
 *.log
+
+# Node.js / Frontend
+web/node_modules/
+web/.cache/
+web/build/
+web/dist/
+web/.env.local
+web/.env.production
+web/npm-debug.log*
+web/yarn-debug.log*
+web/yarn-error.log*

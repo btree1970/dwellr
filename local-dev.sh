@@ -40,12 +40,12 @@ echo "📦 Starting local Supabase services..."
 supabase start
 
 # Start frontend in background if it exists
-if [ -d "web" ]; then
-    echo "🎨 Starting frontend development server..."
-    cd web && npm run dev &
-    FRONTEND_PID=$!
-    cd ..
-fi
+# if [ -d "web" ]; then
+#     echo "🎨 Starting frontend development server..."
+#     cd web && npm install && npm run dev &
+#     FRONTEND_PID=$!
+#     cd ..
+# fi
 
 echo ""
 echo "🏗️  Starting local application services with live logs..."

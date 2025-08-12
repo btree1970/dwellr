@@ -1,26 +1,26 @@
 #!/bin/bash
 
-# Development environment manager - starts both Supabase and app services
+# Local development environment manager - starts both Supabase and app services locally
 # Press Ctrl+C to gracefully shut down everything
 
 set -e
 
 cleanup() {
     echo ""
-    echo "🛑 Shutting down development environment..."
+    echo "🛑 Shutting down local development environment..."
     docker-compose -f docker-compose-local.yml down
     supabase stop
     if [ ! -z "$FRONTEND_PID" ]; then
         kill $FRONTEND_PID 2>/dev/null
     fi
-    echo "✅ Development environment stopped"
+    echo "✅ Local development environment stopped"
     exit 0
 }
 
 # Set up signal traps for graceful shutdown
 trap cleanup SIGINT SIGTERM
 
-echo "🚀 Starting development environment..."
+echo "🚀 Starting local development environment..."
 
 # Check if Supabase CLI is installed
 if ! command -v supabase &> /dev/null; then
@@ -36,19 +36,19 @@ if ! docker info &> /dev/null; then
 fi
 
 # Start Supabase local stack (background)
-echo "📦 Starting Supabase services..."
+echo "📦 Starting local Supabase services..."
 supabase start
 
 # Start frontend in background if it exists
-if [ -d "web" ]; then
-    echo "🎨 Starting frontend development server..."
-    cd web && npm run dev &
-    FRONTEND_PID=$!
-    cd ..
-fi
+# if [ -d "web" ]; then
+#     echo "🎨 Starting frontend development server..."
+#     cd web && npm install && npm run dev &
+#     FRONTEND_PID=$!
+#     cd ..
+# fi
 
 echo ""
-echo "🏗️  Starting application services with live logs..."
+echo "🏗️  Starting local application services with live logs..."
 echo "   Press Ctrl+C to stop everything"
 echo ""
 

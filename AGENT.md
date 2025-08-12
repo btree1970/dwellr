@@ -44,7 +44,7 @@ cp .env.example .env.local
 # Edit .env.local with your API keys (OPENAI_API_KEY, SUPABASE_URL, etc.)
 
 # Start full development stack (recommended)
-./dev.sh  # Starts Supabase + API + Workers + Flower with live logs
+./local-dev.sh  # Starts Supabase + API + Workers + Flower with live logs
 ```
 
 ### Core Commands
@@ -580,7 +580,7 @@ async def chat_message(request: Request):
 
 ```bash
 # Start development
-./dev.sh
+./local-dev.sh
 
 # Run tests
 uv run pytest tests/ -v
@@ -647,7 +647,7 @@ dwell/
 
 ### Key Files
 
-- `dev.sh` - Development environment launcher
+- `local-dev.sh` - Local development environment launcher
 - `docker-compose-local.yml` - Local services configuration
 - `pyproject.toml` - Python dependencies and tools
 - `.env.local` - Environment configuration

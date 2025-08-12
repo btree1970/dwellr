@@ -8,7 +8,7 @@ AI-powered rental listing recommendation system with FastAPI, Celery workers, an
 
 ```bash
 # Start everything (Supabase + App services)
-./dev.sh
+./local-dev.sh
 
 ```
 

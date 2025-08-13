@@ -54,6 +54,30 @@ class ApiClient {
       null
     );
   }
+
+  async sendChatMessage(accessToken: string, message: string) {
+    return this.request(
+      "/api/v1/chat/message",
+      accessToken,
+      {
+        method: "POST",
+        body: { message },
+      }
+    );
+  }
+
+  async getChatHistory(accessToken: string) {
+    return this.request<{
+      messages: Array<{
+        role: string;
+        content: string;
+        tool_calls?: any;
+        timestamp?: string;
+      }>;
+      session_id: string;
+      total_messages: number;
+    }>("/api/v1/chat/history", accessToken);
+  }
 }
 
 export const apiClient = new ApiClient();

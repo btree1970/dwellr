@@ -26,6 +26,7 @@ services:
     volumes:
       - ./logs:/var/log/supervisor
       - .:/app
+      - ./supervisord-local.conf:/etc/supervisor/conf.d/supervisord.conf
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

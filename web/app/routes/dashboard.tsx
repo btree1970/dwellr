@@ -162,15 +162,29 @@ export default function Dashboard() {
             </div>
 
             <div className="mt-6 border-t pt-6">
+              <h3 className="text-sm font-medium text-gray-900 mb-4">
+                Quick Actions
+              </h3>
+              <div className="space-y-3">
+                <Link
+                  to="/chat"
+                  className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Start Chat with AI Assistant
+                </Link>
+              </div>
+            </div>
+
+            <div className="mt-6 border-t pt-6">
               <h3 className="text-sm font-medium text-gray-900 mb-2">
-                Next Steps
+                System Status
               </h3>
               <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                <li>This dashboard proves SSR authentication is working</li>
-                <li>The user data was fetched server-side before rendering</li>
-                <li>Your session is stored in secure httpOnly cookies</li>
+                <li>SSR authentication is working</li>
+                <li>User data fetched server-side before rendering</li>
+                <li>Session stored in secure httpOnly cookies</li>
                 <li>
-                  The FastAPI backend connection shows end-to-end integration
+                  FastAPI backend connection shows end-to-end integration
                 </li>
               </ul>
             </div>

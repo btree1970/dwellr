@@ -2,10 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Link, useLoaderData, useNavigate } from "@remix-run/react";
 import { useState, useEffect, useRef } from "react";
-import {
-  requireAuthenticatedUser,
-  createSupabaseServerClient,
-} from "~/services/auth.server";
+import { requireAuthenticatedUser } from "~/services/auth.server";
 import { MessageList } from "~/components/chat/MessageList";
 import { MessageInput } from "~/components/chat/MessageInput";
 import { useChat } from "~/hooks/useChat";
@@ -13,22 +10,16 @@ import { useChat } from "~/hooks/useChat";
 export async function loader({ request }: LoaderFunctionArgs) {
   const { user, headers } = await requireAuthenticatedUser(request);
 
-  const { supabase } = createSupabaseServerClient(request);
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
   return json(
     {
       user,
-      accessToken: session?.access_token || null,
     },
     { headers }
   );
 }
 
 export default function Chat() {
-  const { user, accessToken } = useLoaderData<typeof loader>();
+  const { user } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const {
     messages,
@@ -37,18 +28,14 @@ export default function Chat() {
     sendMessage,
     clearError,
     loadHistory,
-  } = useChat(accessToken);
+  } = useChat();
 
   const [inputMessage, setInputMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!accessToken) {
-      navigate("/login");
-      return;
-    }
     loadHistory();
-  }, [accessToken, navigate, loadHistory]);
+  }, [loadHistory]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -149,7 +136,7 @@ export default function Chat() {
             onChange={setInputMessage}
             onSend={handleSendMessage}
             onKeyPress={handleKeyPress}
-            disabled={isStreaming || !accessToken}
+            disabled={isStreaming}
             placeholder={
               isStreaming
                 ? "AI is responding..."

@@ -20,32 +20,17 @@ export type StreamEventHandler = (event: StreamEvent) => void;
 export class ChatAPIClient {
   private abortController: AbortController | null = null;
 
-  private getBaseUrl(): string {
-    if (typeof window === "undefined") {
-      return "http://localhost:8000";
-    }
-
-    // In development, use localhost:8000
-    // In production, you'd want to use the same host but different port or path
-    const isDev = window.location.hostname === "localhost";
-    return isDev
-      ? "http://localhost:8000"
-      : `${window.location.protocol}//${window.location.host}`;
-  }
-
   async streamMessage(
-    accessToken: string,
     message: string,
     onEvent: StreamEventHandler
   ): Promise<void> {
     this.abortController = new AbortController();
 
     try {
-      const response = await fetch(`${this.getBaseUrl()}/api/v1/chat/message`, {
+      const response = await fetch("/api/chat/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ message }),
         signal: this.abortController.signal,
@@ -114,14 +99,14 @@ export class ChatAPIClient {
     }
   }
 
-  async getChatHistory(accessToken: string): Promise<{
+  async getChatHistory(): Promise<{
     messages: ChatMessage[];
     session_id: string;
     total_messages: number;
   }> {
-    const response = await fetch(`${this.getBaseUrl()}/api/v1/chat/history`, {
+    const response = await fetch("/api/chat/history", {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
     });
 

@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.deps import CurrentUser
 from src.api.routes import chat_router
@@ -37,15 +36,6 @@ app = FastAPI(
     description="Real estate listing recommendation API",
     version="0.1.0",
     lifespan=lifespan,
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.api_cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
 )
 
 # Include routers

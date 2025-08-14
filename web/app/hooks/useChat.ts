@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { chatAPIClient, type ChatMessage, type StreamEvent } from "~/services/api.client";
 
-export function useChat(accessToken: string | null) {
+export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -10,16 +10,14 @@ export function useChat(accessToken: string | null) {
   const currentToolCalls = useRef<Array<{ tool_name: string; args: any }>>([]);
 
   const loadHistory = useCallback(async () => {
-    if (!accessToken) return;
-
     try {
-      const history = await chatAPIClient.getChatHistory(accessToken);
+      const history = await chatAPIClient.getChatHistory();
       setMessages(history.messages);
     } catch (err) {
       console.error("Failed to load chat history:", err);
       setError("Failed to load chat history");
     }
-  }, [accessToken]);
+  }, []);
 
   const handleStreamEvent = useCallback((event: StreamEvent) => {
     switch (event.type) {
@@ -91,11 +89,6 @@ export function useChat(accessToken: string | null) {
   }, []);
 
   const sendMessage = useCallback(async (message: string) => {
-    if (!accessToken) {
-      setError("Not authenticated");
-      return;
-    }
-
     setError(null);
     setIsStreaming(true);
     currentStreamingMessage.current = "";
@@ -104,13 +97,13 @@ export function useChat(accessToken: string | null) {
     setMessages((prev) => [...prev, { role: "user", content: message }]);
 
     try {
-      await chatAPIClient.streamMessage(accessToken, message, handleStreamEvent);
+      await chatAPIClient.streamMessage(message, handleStreamEvent);
     } catch (err) {
       console.error("Failed to send message:", err);
       setError(err instanceof Error ? err.message : "Failed to send message");
       setIsStreaming(false);
     }
-  }, [accessToken, handleStreamEvent]);
+  }, [handleStreamEvent]);
 
   const clearError = useCallback(() => {
     setError(null);

@@ -5,6 +5,9 @@
 **/*.pyo
 
 # Virtual environments
+.venv/
+venv/
+env/
 **/venv
 **/env
 **/.venv
@@ -43,6 +46,9 @@
 # Automatically created by ruff.
 .ruff_cache/**/*
 
-# flyctl launch added from .venv/.gitignore
-.venv/**/*
+# Local development files
+.env.local
+logs/
+*.db
+dwell.db
 fly.toml

@@ -1,9 +1,9 @@
 import argparse
 import logging
 
+from cli.commands.db import add_db_subparser, handle_db_command
 from cli.commands.task import add_task_subparser, handle_task_command
 from cli.commands.user_agent import add_user_agent_subparser, handle_user_agent_commands
-from src.core.database import db_manager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,6 +17,7 @@ def create_parser():
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
+    add_db_subparser(subparsers)
     add_task_subparser(subparsers)
     add_user_agent_subparser(subparsers)
 
@@ -31,10 +32,9 @@ async def main():
         parser.print_help()
         return 1
 
-    # Initialize database
-    db_manager.init_db()
-
-    if args.command == "task":
+    if args.command == "db":
+        success = handle_db_command(args)
+    elif args.command == "task":
         success = handle_task_command(args)
     elif args.command == "user_agent":
         success = await handle_user_agent_commands(args)

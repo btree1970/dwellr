@@ -1,6 +1,7 @@
 # Dwell - AI-Powered Rental Search System
 
 ## What is Dwell?
+
 AI rental property search with conversational interface. Evaluates listings against user preferences using GPT-4, provides personalized recommendations with intelligent scoring.
 
 ## Architecture at a Glance
@@ -8,6 +9,7 @@ AI rental property search with conversational interface. Evaluates listings agai
 **Stack:** Remix (SSR) + FastAPI + Pydantic AI + Celery + Redis + PostgreSQL/SQLite + Supabase Auth
 
 **Services & Ports:**
+
 - Frontend: `localhost:5173` (Remix/Vite)
 - API: `localhost:8000` (FastAPI)
 - Flower: `localhost:5555` (Task monitoring)
@@ -15,6 +17,7 @@ AI rental property search with conversational interface. Evaluates listings agai
 - Supabase: `localhost:54321` (local)
 
 **Key Data Flows:**
+
 - Chat: Browser → Remix proxy → FastAPI → Pydantic AI Agent → SSE streaming
 - Auth: Browser cookies → Remix → Supabase → FastAPI JWT validation (server-side only)
 - Tasks: API → Redis → Celery Worker → Database
@@ -57,9 +60,15 @@ uv run pytest tests/unit/ -v  # Unit tests
 uv run pytest --cov=src       # With coverage
 
 # CLI Tools
-python dwell_cli.py task sync --verbose      # Manual sync
-python dwell_cli.py user_agent --user-id test # Test chat
-python dwell_cli.py db init                  # Init database
+./dwell_cli.py db init                  # Initialize database with migrations
+./dwell_cli.py db migrate                # Run pending migrations
+./dwell_cli.py db status                 # Check migration status
+./dwell_cli.py db create-migration "description"  # Create new migration
+./dwell_cli.py db rollback               # Rollback last migration
+./dwell_cli.py db history                # View migration history
+./dwell_cli.py db verify                 # Verify schema integrity
+./dwell_cli.py task sync --verbose      # Manual sync
+./dwell_cli.py user_agent --user-id test # Test chat
 
 # Monitoring
 open http://localhost:5555    # Flower UI
@@ -69,6 +78,7 @@ curl http://localhost:8000/health  # API health
 ## Code Patterns
 
 ### Python (3.11+)
+
 ```python
 # Type hints always
 async def process_listings(
@@ -92,6 +102,7 @@ except ValidationError as e:
 ```
 
 ### Frontend (TypeScript/Remix)
+
 ```typescript
 // Use loader for SSR data
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -142,18 +153,21 @@ dwell/
 ## Key Files & Their Purpose
 
 **Backend Core:**
+
 - `src/api/main.py:45` - FastAPI app setup & middleware
 - `src/agents/user_agent.py:120` - Main AI conversation handler
 - `src/core/config.py:30` - Settings management
 - `src/workers/celery_app.py:15` - Task queue configuration
 
 **Frontend Core:**
+
 - `web/app/root.tsx:25` - Root layout & providers
 - `web/app/routes/chat.tsx:85` - Chat interface
 - `web/app/services/api.ts:40` - API client
 - `web/app/services/auth.server.ts:60` - Auth utilities
 
 **Configuration:**
+
 - `.env.local` - API keys, database URLs
 - `ingestors.yaml` - Data source config
 - `docker-compose-local.yml` - Local services
@@ -195,15 +209,15 @@ def test_ai_evaluation(mock_openai):
 
 ## Common Issues & Solutions
 
-| Issue | Fix |
-|-------|-----|
-| Port in use | `lsof -i :8000 && kill -9 <PID>` |
-| Redis refused | `redis-server` or `brew services start redis` |
-| Type errors | `uv run pyright src/` |
-| Import errors | `uv sync` |
-| Frontend build fails | Check Node 20+, `cd web && npm install` |
-| Auth fails | Verify SUPABASE_URL and SUPABASE_ANON_KEY |
-| CORS errors | Update CORS_ORIGINS to include frontend URL |
+| Issue                | Fix                                           |
+| -------------------- | --------------------------------------------- |
+| Port in use          | `lsof -i :8000 && kill -9 <PID>`              |
+| Redis refused        | `redis-server` or `brew services start redis` |
+| Type errors          | `uv run pyright src/`                         |
+| Import errors        | `uv sync`                                     |
+| Frontend build fails | Check Node 20+, `cd web && npm install`       |
+| Auth fails           | Verify SUPABASE_URL and SUPABASE_ANON_KEY     |
+| CORS errors          | Update CORS_ORIGINS to include frontend URL   |
 
 ## Code Style Rules
 
@@ -213,37 +227,6 @@ def test_ai_evaluation(mock_openai):
 - **Async:** Prefer async/await over callbacks
 - **Errors:** Specific exceptions, proper logging levels
 - **Security:** No hardcoded secrets, parameterized queries, input validation
-
-## Comment Guidelines
-
-**Only comment WHY, not WHAT:**
-- ✅ Business logic, constraints, workarounds
-- ✅ Non-obvious decisions and edge cases
-- ❌ Describing what code does (let code self-document)
-
-**Examples:**
-
-```python
-# BAD: Increment counter by 1
-counter += 1
-
-# GOOD: Rate limit requires 1 second minimum between requests
-time.sleep(1)
-
-# BAD: Check if user exists
-if user_id in active_users:
-
-# GOOD: Legacy system expects uppercase IDs (migration planned Q2)
-user_id = user_id.upper()
-
-# BAD: Handle error
-except ValueError:
-    pass
-
-# GOOD: Supabase returns 'null' string instead of None for missing fields
-if response == 'null':
-    response = None
-```
 
 ## Deployment
 
@@ -256,6 +239,27 @@ docker-compose up
 fly deploy  # Uses fly.toml
 fly status
 fly logs
+```
+
+## Database Migrations
+
+The project uses Alembic for database schema management. Migrations run automatically on startup via `./local-dev.sh`, but you can manage them manually:
+
+```bash
+# After modifying models, create a new migration
+./dwell_cli.py db create-migration "add new field to user"
+
+# Apply pending migrations
+./dwell_cli.py db migrate
+
+# Check migration status
+./dwell_cli.py db status
+
+# Rollback if needed
+./dwell_cli.py db rollback
+
+# View history
+./dwell_cli.py db history
 ```
 
 ## Workflow Tips
@@ -294,3 +298,6 @@ fly logs
 - Task Monitor: http://localhost:5555
 - Logs: `tail -f logs/*.log`
 - Database: `uv run python -c "from src.core.database import get_db; ..."`
+
+- use linear mcp to create and manage tasks
+- use uv add <packagae> to add dependiences. Do not add directly to pyproject.toml

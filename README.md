@@ -13,6 +13,7 @@ AI-powered rental listing recommendation system with FastAPI, Celery workers, an
 ```
 
 **Alternative (manual steps):**
+
 ```bash
 # Start Supabase services
 supabase start
@@ -22,7 +23,9 @@ docker-compose -f docker-compose-local.yml up --build
 
 ```
 
+i
 **Services:**
+
 - FastAPI API: http://localhost:8000 (docs: /docs)
 - Flower (Celery monitoring): http://localhost:5555
 - Supabase Studio: http://localhost:54323
@@ -49,6 +52,7 @@ docker-compose -f docker-compose-local.yml up --build
 ### AI Agent Configuration
 
 This project includes `AGENT.md` following the [AGENT.md RFC](https://agent.md/) standard, which provides comprehensive documentation for AI coding assistants. The following files are symlinked to AGENT.md for compatibility:
+
 - `CLAUDE.md` → Claude Code
 - `AGENTS.md` → OpenAI Codex
 
@@ -92,14 +96,31 @@ task_id = scheduler.schedule_job(
 )
 ```
 
+### Database Migrations
+
+Alembic migrations run automatically on startup. Manual commands:
+
+```bash
+./dwell_cli.py db status                        # Check status
+./dwell_cli.py db migrate                       # Run migrations
+./dwell_cli.py db create-migration "desc"       # Auto-generate from models
+./dwell_cli.py db rollback                      # Undo last migration
+./dwell_cli.py db history                       # View history
+```
+
 ### CLI Usage
 
 ```bash
+# Database management
+./dwell_cli.py db init           # Initialize database
+./dwell_cli.py db migrate         # Run migrations
+./dwell_cli.py db status          # Check status
+
 # Task management
-python dwell_cli.py task sync --verbose
-python dwell_cli.py task evaluate --no-wait
-python dwell_cli.py task status <task_id>
-python dwell_cli.py task list --type=sync --status=failed
+./dwell_cli.py task sync --verbose
+./dwell_cli.py task evaluate --no-wait
+./dwell_cli.py task status <task_id>
+./dwell_cli.py task list --type=sync --status=failed
 ```
 
 ## Deployment
@@ -120,6 +141,7 @@ Configuration: Single machine running all services via Supervisor with health ch
 ### Process Management
 
 The application uses Supervisor for multi-process management:
+
 - **fastapi**: Main API server
 - **celery-worker**: Background task processor
 - **celery-beat**: Scheduled task runner
@@ -148,6 +170,7 @@ ingestors:
 ### User Preferences
 
 Users can set preferences for:
+
 - Price ranges and periods (daily/weekly/monthly)
 - Date flexibility and preferred dates
 - Listing types and natural language preferences

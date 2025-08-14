@@ -17,7 +17,9 @@ export class ApiProxy {
 
   private async getAuthHeaders(): Promise<HeadersInit> {
     const { supabase } = createSupabaseServerClient(this.request);
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
       throw new Response("Unauthorized", { status: 401 });
@@ -25,7 +27,7 @@ export class ApiProxy {
 
     return {
       Authorization: `Bearer ${session.access_token}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     };
   }
 
@@ -40,11 +42,11 @@ export class ApiProxy {
     try {
       const response = await fetch(url, {
         ...init,
-        signal: controller.signal
+        signal: controller.signal,
       });
       return response;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && error.name === "AbortError") {
         throw new Error(`Request timeout after ${timeout}ms`);
       }
       throw error;
@@ -64,38 +66,48 @@ export class ApiProxy {
       if (retries === 0) throw error;
 
       console.log(`Retrying request, ${retries} attempts remaining...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
       return this.retryRequest(fn, retries - 1, delay * 2);
     }
   }
 
-  private logRequest(method: string, path: string, startTime: number, status?: number, error?: Error) {
+  private logRequest(
+    method: string,
+    path: string,
+    startTime: number,
+    status?: number,
+    error?: Error
+  ) {
     const duration = Date.now() - startTime;
     const logData = {
       timestamp: new Date().toISOString(),
-      type: 'api_proxy_request',
+      type: "api_proxy_request",
       method,
       path,
       duration,
       status,
-      error: error?.message
+      error: error?.message,
     };
 
     if (error) {
-      console.error('API Proxy Error:', logData);
+      console.error("API Proxy Error:", logData);
     } else {
-      console.log('API Proxy Request:', logData);
+      console.log("API Proxy Request:", logData);
     }
   }
 
-  async proxy<T>(path: string, init?: RequestInit, options?: ProxyOptions): Promise<T> {
+  async proxy<T>(
+    path: string,
+    init?: RequestInit,
+    options?: ProxyOptions
+  ): Promise<T> {
     const startTime = Date.now();
-    const method = init?.method || 'GET';
+    const method = init?.method || "GET";
 
     const defaultOptions: ProxyOptions = {
       timeout: 30000,
-      retries: method === 'GET' ? 3 : 0,
-      retryDelay: 1000
+      retries: method === "GET" ? 3 : 0,
+      retryDelay: 1000,
     };
 
     const opts = { ...defaultOptions, ...options };
@@ -108,25 +120,29 @@ export class ApiProxy {
         ...init,
         headers: {
           ...authHeaders,
-          ...init?.headers
-        }
+          ...init?.headers,
+        },
       };
 
-      const makeRequest = () => this.fetchWithTimeout(url, requestInit, opts.timeout);
+      const makeRequest = () =>
+        this.fetchWithTimeout(url, requestInit, opts.timeout);
 
-      const response = opts.retries > 0
-        ? await this.retryRequest(makeRequest, opts.retries, opts.retryDelay!)
-        : await makeRequest();
+      const response =
+        opts.retries && opts.retries > 0
+          ? await this.retryRequest(makeRequest, opts.retries, opts.retryDelay!)
+          : await makeRequest();
 
       this.logRequest(method, path, startTime, response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        const error = new Error(`API request failed: ${response.status} - ${errorText}`);
+        const error = new Error(
+          `API request failed: ${response.status} - ${errorText}`
+        );
         this.logRequest(method, path, startTime, response.status, error);
         throw new Response(errorText, {
           status: response.status,
-          headers: response.headers
+          headers: response.headers,
         });
       }
 
@@ -140,23 +156,30 @@ export class ApiProxy {
       }
 
       throw new Response(
-        JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
+        JSON.stringify({
+          error:
+            error instanceof Error ? error.message : "Internal server error",
+        }),
         {
           status: 500,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { "Content-Type": "application/json" },
         }
       );
     }
   }
 
-  async proxyStream(path: string, init?: RequestInit, options?: ProxyOptions): Promise<Response> {
+  async proxyStream(
+    path: string,
+    init?: RequestInit,
+    options?: ProxyOptions
+  ): Promise<Response> {
     const startTime = Date.now();
-    const method = init?.method || 'GET';
+    const method = init?.method || "GET";
 
     const defaultOptions: ProxyOptions = {
       timeout: 60000,
       retries: 0,
-      retryDelay: 1000
+      retryDelay: 1000,
     };
 
     const opts = { ...defaultOptions, ...options };
@@ -169,21 +192,27 @@ export class ApiProxy {
         ...init,
         headers: {
           ...authHeaders,
-          ...init?.headers
-        }
+          ...init?.headers,
+        },
       };
 
-      const response = await this.fetchWithTimeout(url, requestInit, opts.timeout);
+      const response = await this.fetchWithTimeout(
+        url,
+        requestInit,
+        opts.timeout
+      );
 
       this.logRequest(method, path, startTime, response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        const error = new Error(`Stream request failed: ${response.status} - ${errorText}`);
+        const error = new Error(
+          `Stream request failed: ${response.status} - ${errorText}`
+        );
         this.logRequest(method, path, startTime, response.status, error);
         throw new Response(errorText, {
           status: response.status,
-          headers: response.headers
+          headers: response.headers,
         });
       }
 
@@ -231,7 +260,7 @@ export class ApiProxy {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
         },
       });
     } catch (error) {
@@ -242,10 +271,12 @@ export class ApiProxy {
       }
 
       throw new Response(
-        JSON.stringify({ error: error instanceof Error ? error.message : 'Stream error' }),
+        JSON.stringify({
+          error: error instanceof Error ? error.message : "Stream error",
+        }),
         {
           status: 500,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { "Content-Type": "application/json" },
         }
       );
     }
@@ -254,7 +285,9 @@ export class ApiProxy {
 
 export async function createApiProxy(request: Request) {
   const { supabase, headers } = createSupabaseServerClient(request);
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   if (!session) {
     throw new Response("Unauthorized", { status: 401, headers });
@@ -262,6 +295,6 @@ export async function createApiProxy(request: Request) {
 
   return {
     proxy: new ApiProxy(request),
-    headers
+    headers,
   };
 }

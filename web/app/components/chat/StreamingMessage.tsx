@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import type { Components } from "react-markdown";
 import { ToolCallIndicator } from "./ToolCallIndicator";
 
 interface StreamingMessageProps {
@@ -47,7 +48,8 @@ export function StreamingMessage({ content, toolCalls }: StreamingMessageProps) 
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-            code({ node, inline, className, children, ...props }) {
+            code({ node, className, children, ...props }: any) {
+              const inline = props.inline;
               const match = /language-(\w+)/.exec(className || "");
               return !inline && match ? (
                 <SyntaxHighlighter
@@ -68,15 +70,15 @@ export function StreamingMessage({ content, toolCalls }: StreamingMessageProps) 
                 </code>
               );
             },
-            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-            ul: ({ children }) => (
+            p: ({ children }: any) => <p className="mb-2 last:mb-0">{children}</p>,
+            ul: ({ children }: any) => (
               <ul className="list-disc list-inside mb-2">{children}</ul>
             ),
-            ol: ({ children }) => (
+            ol: ({ children }: any) => (
               <ol className="list-decimal list-inside mb-2">{children}</ol>
             ),
-            li: ({ children }) => <li className="mb-1">{children}</li>,
-            a: ({ href, children }) => (
+            li: ({ children }: any) => <li className="mb-1">{children}</li>,
+            a: ({ href, children }: any) => (
               <a
                 href={href}
                 target="_blank"
@@ -86,16 +88,16 @@ export function StreamingMessage({ content, toolCalls }: StreamingMessageProps) 
                 {children}
               </a>
             ),
-            h1: ({ children }) => (
+            h1: ({ children }: any) => (
               <h1 className="text-xl font-bold mb-2">{children}</h1>
             ),
-            h2: ({ children }) => (
+            h2: ({ children }: any) => (
               <h2 className="text-lg font-semibold mb-2">{children}</h2>
             ),
-            h3: ({ children }) => (
+            h3: ({ children }: any) => (
               <h3 className="text-base font-semibold mb-2">{children}</h3>
             ),
-            blockquote: ({ children }) => (
+            blockquote: ({ children }: any) => (
               <blockquote className="border-l-4 border-gray-300 pl-4 italic my-2">
                 {children}
               </blockquote>

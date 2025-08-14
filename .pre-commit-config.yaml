@@ -23,6 +23,16 @@ repos:
       - id: pyright
         files: ^src/
 
+  # TypeScript type checking for web directory
+  - repo: local
+    hooks:
+      - id: typecheck-web
+        name: TypeScript typecheck (web)
+        entry: bash -c 'cd web && npm run typecheck'
+        language: system
+        files: ^web/.*\.(ts|tsx)$
+        pass_filenames: false
+
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

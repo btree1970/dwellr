@@ -1,712 +1,296 @@
-# Dwell - AI Assistant Documentation
+# Dwell - AI-Powered Rental Search System
 
-## Project Overview
+## What is Dwell?
+AI rental property search with conversational interface. Evaluates listings against user preferences using GPT-4, provides personalized recommendations with intelligent scoring.
 
-**Dwell** is an AI-powered rental property search and recommendation system that helps users find ideal housing through conversational AI. The system evaluates listings against user preferences using OpenAI GPT-4, providing personalized recommendations with intelligent filtering and scoring.
+## Architecture at a Glance
 
-### Core Architecture
+**Stack:** Remix (SSR) + FastAPI + Pydantic AI + Celery + Redis + PostgreSQL/SQLite + Supabase Auth
 
-- **Frontend**: Remix with SSR, TypeScript, Tailwind CSS, and Vite build system
-- **Backend**: FastAPI with async Python 3.11+, SQLAlchemy ORM, Pydantic validation
-- **AI Framework**: Pydantic AI for structured LLM interactions with streaming responses
-- **Task Queue**: Celery with Redis for background processing (evaluation, sync)
-- **Database**: PostgreSQL (production) / SQLite (development)
-- **Authentication**: Supabase JWT with cookie-based sessions (SSR) and automatic user creation
-- **Real-time**: Server-Sent Events for streaming chat responses
+**Services & Ports:**
+- Frontend: `localhost:5173` (Remix/Vite)
+- API: `localhost:8000` (FastAPI)
+- Flower: `localhost:5555` (Task monitoring)
+- Redis: `localhost:6379`
+- Supabase: `localhost:54321` (local)
 
-### Service Components
+**Key Data Flows:**
+- Chat: Browser → Remix proxy → FastAPI → Pydantic AI Agent → SSE streaming
+- Auth: Browser cookies → Remix → Supabase → FastAPI JWT validation (server-side only)
+- Tasks: API → Redis → Celery Worker → Database
+- Sync: Scheduled (6hr) → Ingestors → Database → AI Evaluation
 
-1. **Web Frontend** (`web/`) - Remix app with Vite dev server on port 5173
-2. **API Server** (`src/api/`) - FastAPI on port 8000
-3. **Celery Worker** (`src/workers/`) - Background task processing
-4. **Celery Beat** - Scheduled tasks (6-hour sync/evaluation cycles)
-5. **Flower** - Task monitoring UI on port 5555
-6. **Redis** - Message broker and cache
-7. **PostgreSQL/SQLite** - Primary data storage
-
-### Data Flow
-
-1. **Ingestion**: External sources → Ingestors → Database
-2. **Evaluation**: New listings → Hard filters → AI scoring → Recommendations
-3. **Chat**: Frontend → API → Agent → Tools → Services → Streaming response
-4. **Authentication**: Frontend → Supabase → Backend JWT validation
-
-## Build & Commands
-
-### Development Setup
+## Quick Start
 
 ```bash
-# Install system dependencies
-# Python (via UV) and Node.js 20+ required
+# First time setup
+curl -LsSf https://astral.sh/uv/install.sh | sh  # Install UV
+uv sync                                           # Python deps
+cd web && npm install && cd ..                   # Frontend deps
+cp .env.example .env.local                       # Configure env
 
-# Install UV package manager (if not installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Start everything
+./local-dev.sh  # Recommended: Full stack with logs
 
-# Install Python dependencies
-uv sync
-
-# Install frontend dependencies
-cd web && npm install && cd ..
-
-# Copy environment configuration
-cp .env.example .env.local
-# Edit .env.local with your API keys (OPENAI_API_KEY, SUPABASE_URL, etc.)
-
-# Start full development stack (recommended)
-./local-dev.sh  # Starts Supabase + API + Workers + Flower with live logs
-
-# OR start services individually:
-# Backend: uv run uvicorn src.api.main:app --reload --port 8000
-# Frontend: cd web && npm run dev
+# Or start individually
+uv run uvicorn src.api.main:app --reload --port 8000
+cd web && npm run dev
 ```
 
-### Core Commands
+## Essential Commands
 
-#### Development
 ```bash
-# Start services individually
-uv run uvicorn src.api.main:app --reload --port 8000  # API server
-uv run celery -A src.workers.celery_app worker --loglevel=info  # Worker
-uv run celery -A src.workers.celery_app beat --loglevel=info  # Scheduler
-uv run celery -A src.workers.celery_app flower  # Monitoring UI
+# Development
+./local-dev.sh                # Full stack
+cd web && npm run dev         # Frontend only
+uv run pytest tests/ -v       # Run tests
+uv run black src/ && uv run ruff check src/ --fix  # Format & lint
+uv run pyright src/           # Type check
 
-# Frontend development server
-cd web && npm run dev  # Remix dev server on port 5173
+# Frontend
+cd web && npm run build       # Production build
+cd web && npm run lint        # Lint
+cd web && npm run typecheck   # TypeScript check
 
-# Docker alternative
-docker-compose -f docker-compose-local.yml up --build
+# Testing
+uv run pytest tests/unit/ -v  # Unit tests
+uv run pytest --cov=src       # With coverage
+
+# CLI Tools
+python dwell_cli.py task sync --verbose      # Manual sync
+python dwell_cli.py user_agent --user-id test # Test chat
+python dwell_cli.py db init                  # Init database
+
+# Monitoring
+open http://localhost:5555    # Flower UI
+curl http://localhost:8000/health  # API health
 ```
 
-#### Frontend
-```bash
-# Frontend development
-cd web
-npm install  # Install dependencies
-npm run dev  # Start dev server
-npm run build  # Build for production
-npm run start  # Start production server
-npm run lint  # Lint code
-npm run typecheck  # Type checking
-```
+## Code Patterns
 
-#### Testing
-```bash
-# Run all tests
-uv run pytest tests/ -v
-
-# Run specific test categories
-uv run pytest tests/unit/ -v  # Unit tests only
-uv run pytest tests/integration/ -v  # Integration tests
-uv run pytest tests/workflows/ -v  # Workflow tests
-
-# With coverage
-uv run pytest --cov=src --cov-report=term-missing
-
-# Quick test run
-uv run pytest tests/ -v --tb=short
-```
-
-#### Code Quality
-```bash
-# Linting
-uv run ruff check src/  # Check for issues
-uv run ruff check src/ --fix  # Auto-fix issues
-
-# Formatting
-uv run black src/  # Format code
-uv run black src/ --check  # Check formatting without changes
-
-# Type checking
-uv run pyright src/  # Full type check
-uv run pyright src/agents/  # Check specific module
-
-# Pre-commit hooks
-uv run pre-commit install  # Set up hooks
-uv run pre-commit run -a  # Run all hooks manually
-```
-
-#### CLI Tools
-```bash
-# Task management
-python dwell_cli.py task sync --verbose  # Run sync task
-python dwell_cli.py task evaluate --verbose  # Run evaluation
-python dwell_cli.py task status <task_id>  # Check task status
-python dwell_cli.py task list --type=sync  # List tasks
-
-# User agent testing
-python dwell_cli.py user_agent --user-id <id>  # Test chat interface
-
-# Database operations
-python dwell_cli.py db init  # Initialize database
-python dwell_cli.py db reset  # Reset database (careful!)
-```
-
-#### Deployment
-```bash
-# Build Docker image
-docker build -t dwell:latest .
-
-# Deploy to Fly.io
-fly deploy  # Uses fly.toml configuration
-
-# Check deployment
-fly status
-fly logs
-```
-
-## Code Style
-
-### Python Standards
-
-- **Python Version**: 3.11+ (use modern features like type hints, async/await)
-- **Line Length**: 88 characters (Black/Ruff standard)
-- **Indentation**: 4 spaces (no tabs)
-- **Import Order**: Sorted by Ruff (stdlib → third-party → local)
-
-### Naming Conventions
-
-- **Files/Modules**: `snake_case.py`
-- **Classes**: `PascalCase` (e.g., `UserAgent`, `ListingService`)
-- **Functions/Variables**: `snake_case` (e.g., `get_user_preferences`)
-- **Constants**: `UPPER_SNAKE_CASE` (e.g., `MAX_RETRIES`)
-- **Private**: Leading underscore (e.g., `_internal_method`)
-
-### Type Hints
-
+### Python (3.11+)
 ```python
-# Always use type hints for function signatures
-from typing import List, Optional, Dict, Any
-
+# Type hints always
 async def process_listings(
     user_id: str,
-    filters: Optional[Dict[str, Any]] = None
-) -> List[Listing]:
+    filters: dict[str, Any] | None = None
+) -> list[Listing]:
     ...
 
-# Use modern union syntax (Python 3.10+)
-def get_price(period: str | None = None) -> float | None:
-    ...
-```
+# Async for I/O
+async with aiohttp.ClientSession() as session:
+    async with session.get(url) as response:
+        return await response.json()
 
-### Async/Await Patterns
-
-```python
-# Prefer async for I/O operations
-async def fetch_data() -> dict:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            return await response.json()
-
-# Use asyncio.gather for parallel operations
-results = await asyncio.gather(
-    fetch_user(user_id),
-    fetch_listings(),
-    fetch_preferences()
-)
-```
-
-### Error Handling
-
-```python
-# Use specific exceptions
+# Error handling
 from src.api.exceptions import ChatSessionException
-
 try:
     result = await process_request()
 except ValidationError as e:
     logger.error(f"Validation failed: {e}")
     raise ChatSessionException(f"Invalid input: {str(e)}")
-except Exception as e:
-    logger.exception("Unexpected error")
-    raise
 ```
 
-### Logging
+### Frontend (TypeScript/Remix)
+```typescript
+// Use loader for SSR data
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const user = await requireAuth(request);
+  return json({ user });
+};
 
-```python
-import logging
-logger = logging.getLogger(__name__)
+// Action for mutations
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const formData = await request.formData();
+  // Handle form submission
+};
 
-# Use appropriate log levels
-logger.debug("Detailed debug info")
-logger.info(f"Processing user {user_id}")
-logger.warning("Rate limit approaching")
-logger.error(f"Failed to fetch listing: {e}")
-logger.exception("Critical error with traceback")
+// Components with proper types
+interface ChatMessageProps {
+  message: string;
+  timestamp: Date;
+}
 ```
 
-## Testing
+## Project Structure
 
-### Framework & Structure
+```
+dwell/
+├── src/
+│   ├── api/          # FastAPI app
+│   │   ├── routes/   # Endpoints
+│   │   └── utils/    # SSE, auth helpers
+│   ├── agents/       # Pydantic AI agents
+│   │   ├── user_agent.py       # Main chat agent
+│   │   └── tools/              # Agent tools
+│   ├── core/         # Config, database, auth
+│   ├── models/       # SQLAlchemy models
+│   ├── services/     # Business logic
+│   ├── workers/      # Celery tasks
+│   └── ingestors/    # Data ingestion
+├── web/
+│   ├── app/
+│   │   ├── routes/   # Remix routes
+│   │   └── services/ # API clients
+│   └── package.json
+├── tests/            # Pytest tests
+├── .env.local        # Environment config
+├── local-dev.sh      # Dev launcher
+└── pyproject.toml    # Python deps
+```
 
-- **Framework**: Pytest with async support
-- **Structure**: `tests/` directory with subdirectories for unit/integration/workflow
-- **Fixtures**: Shared in `tests/conftest.py` and `tests/fixtures/`
-- **Naming**: Files `test_*.py`, classes `Test*`, functions `test_*`
+## Key Files & Their Purpose
 
-### Testing Patterns
+**Backend Core:**
+- `src/api/main.py:45` - FastAPI app setup & middleware
+- `src/agents/user_agent.py:120` - Main AI conversation handler
+- `src/core/config.py:30` - Settings management
+- `src/workers/celery_app.py:15` - Task queue configuration
+
+**Frontend Core:**
+- `web/app/root.tsx:25` - Root layout & providers
+- `web/app/routes/chat.tsx:85` - Chat interface
+- `web/app/services/api.ts:40` - API client
+- `web/app/services/auth.server.ts:60` - Auth utilities
+
+**Configuration:**
+- `.env.local` - API keys, database URLs
+- `ingestors.yaml` - Data source config
+- `docker-compose-local.yml` - Local services
+
+## Environment Variables
+
+```bash
+# Required
+OPENAI_API_KEY=sk-...
+SUPABASE_URL=https://xyz.supabase.co
+SUPABASE_ANON_KEY=eyJ...
+DATABASE_URL=sqlite:///./dwell.db  # or postgresql://...
+REDIS_URL=redis://localhost:6379/0
+
+# Optional
+AI_MODEL=gpt-4-turbo-preview
+LOG_LEVEL=INFO
+API_BASE_URL=http://localhost:8000
+```
+
+## Testing Strategy
 
 ```python
-# Basic test structure
-import pytest
-from unittest.mock import Mock, patch
-
+# Unit test example
 @pytest.mark.asyncio
 async def test_user_agent_chat():
-    """Test that user agent handles chat correctly."""
-    # Arrange
     user = create_test_user()
     agent = UserAgent(user=user)
-
-    # Act
     response = await agent.chat("Find me a place in Brooklyn")
-
-    # Assert
-    assert response is not None
     assert "Brooklyn" in response.content
-```
 
-### Database Testing
-
-```python
-# Use test database fixture
-@pytest.fixture
-def test_db():
-    """Create test database session."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    session = sessionmaker(bind=engine)()
-    yield session
-    session.close()
-
-def test_listing_creation(test_db):
-    listing = Listing(url="https://example.com", title="Test")
-    test_db.add(listing)
-    test_db.commit()
-    assert listing.id is not None
-```
-
-### Mocking External Services
-
-```python
-# Mock OpenAI calls
+# Mock external services
 @patch("openai.ChatCompletion.create")
 def test_ai_evaluation(mock_openai):
-    mock_openai.return_value = {
-        "choices": [{"message": {"content": "8/10"}}]
-    }
+    mock_openai.return_value = {"choices": [{"message": {"content": "8/10"}}]}
     score = evaluate_listing(listing, preferences)
     assert score == 8
 ```
 
-### Test Categories
+## Common Issues & Solutions
 
-1. **Unit Tests** (`tests/unit/`) - Individual functions/methods
-2. **Integration Tests** (`tests/integration/`) - Component interactions
-3. **Workflow Tests** (`tests/workflows/`) - End-to-end scenarios
-4. **Performance Tests** - Response times, memory usage
+| Issue | Fix |
+|-------|-----|
+| Port in use | `lsof -i :8000 && kill -9 <PID>` |
+| Redis refused | `redis-server` or `brew services start redis` |
+| Type errors | `uv run pyright src/` |
+| Import errors | `uv sync` |
+| Frontend build fails | Check Node 20+, `cd web && npm install` |
+| Auth fails | Verify SUPABASE_URL and SUPABASE_ANON_KEY |
+| CORS errors | Update CORS_ORIGINS to include frontend URL |
 
-### Running Tests
+## Code Style Rules
 
-```bash
-# Quick validation
-uv run pytest tests/ -v --tb=short
+- **Python:** Black formatter, Ruff linter, type hints required
+- **TypeScript:** ESLint, Prettier, strict mode
+- **Naming:** snake_case (Python), camelCase (TS), PascalCase (classes/components)
+- **Async:** Prefer async/await over callbacks
+- **Errors:** Specific exceptions, proper logging levels
+- **Security:** No hardcoded secrets, parameterized queries, input validation
 
-# Full test suite with coverage
-uv run pytest --cov=src --cov-report=html
+## Comment Guidelines
 
-# Specific test file
-uv run pytest tests/unit/test_user_agent.py -v
+**Only comment WHY, not WHAT:**
+- ✅ Business logic, constraints, workarounds
+- ✅ Non-obvious decisions and edge cases
+- ❌ Describing what code does (let code self-document)
 
-# Run tests matching pattern
-uv run pytest -k "chat" -v
-```
-
-## Security
-
-### API Keys & Secrets
-
-```bash
-# NEVER commit secrets to git
-# Use environment variables via .env files
-
-# Development hierarchy
-.env.example  # Template with dummy values (committed)
-.env.local    # Local development values (gitignored)
-.env.test     # Test environment values (gitignored)
-.env          # Production values (gitignored)
-```
-
-### Required Environment Variables
-
-```bash
-# Core Services
-OPENAI_API_KEY=sk-...  # OpenAI API key for GPT-4
-SUPABASE_URL=https://...supabase.co  # Supabase project URL
-SUPABASE_ANON_KEY=eyJ...  # Supabase anonymous key
-DATABASE_URL=postgresql://...  # PostgreSQL connection
-REDIS_URL=redis://localhost:6379/0  # Redis connection
-
-# Optional Configuration
-ENV=local|development|production  # Environment name
-LOG_LEVEL=INFO|DEBUG|WARNING  # Logging verbosity
-CORS_ORIGINS=http://localhost:3000  # Allowed CORS origins
-```
-
-### Authentication & Authorization
-
-- **JWT Validation**: All API endpoints validate Supabase JWT tokens
-- **User Isolation**: Users only access their own data
-- **Automatic User Creation**: New users created on first authenticated request
-
-### Data Protection
+**Examples:**
 
 ```python
-# Sanitize user input
-from pydantic import validator
+# BAD: Increment counter by 1
+counter += 1
 
-class UserPreferences(BaseModel):
-    budget_max: float
+# GOOD: Rate limit requires 1 second minimum between requests
+time.sleep(1)
 
-    @validator('budget_max')
-    def validate_budget(cls, v):
-        if v < 0 or v > 1000000:
-            raise ValueError("Invalid budget range")
-        return v
+# BAD: Check if user exists
+if user_id in active_users:
 
-# Parameterized queries (prevent SQL injection)
-query = select(Listing).where(
-    Listing.price <= :max_price
-).params(max_price=user_budget)
+# GOOD: Legacy system expects uppercase IDs (migration planned Q2)
+user_id = user_id.upper()
+
+# BAD: Handle error
+except ValueError:
+    pass
+
+# GOOD: Supabase returns 'null' string instead of None for missing fields
+if response == 'null':
+    response = None
 ```
 
-### Rate Limiting
-
-```python
-# Implement rate limiting for expensive operations
-from functools import wraps
-from time import time
-
-def rate_limit(max_calls=10, period=60):
-    def decorator(func):
-        calls = []
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            now = time()
-            calls[:] = [c for c in calls if c > now - period]
-            if len(calls) >= max_calls:
-                raise Exception("Rate limit exceeded")
-            calls.append(now)
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
-```
-
-### Security Best Practices
-
-1. **Input Validation**: Use Pydantic models for all user input
-2. **SQL Injection**: Always use parameterized queries with SQLAlchemy
-3. **XSS Prevention**: Sanitize all user-generated content
-4. **CORS**: Configure allowed origins explicitly
-5. **Secrets Management**: Use environment variables, never hardcode
-6. **Logging**: Never log sensitive data (passwords, API keys)
-7. **Dependencies**: Keep packages updated with `uv lock --upgrade`
-
-## Configuration
-
-### Environment Setup
+## Deployment
 
 ```bash
-# 1. Install system dependencies
-brew install postgresql redis  # macOS
-sudo apt-get install postgresql redis-server  # Ubuntu
+# Docker
+docker build -t dwell:latest .
+docker-compose up
 
-# 2. Install Supabase CLI
-brew install supabase/tap/supabase  # macOS
-# Or see: https://supabase.com/docs/guides/cli
-
-# 3. Clone and setup repository
-git clone <repository>
-cd dwell
-uv sync  # Install Python dependencies
-
-# 4. Configure environment
-cp .env.example .env.local
-# Edit .env.local with your configuration
-
-# 5. Initialize database
-uv run python -c "from src.core.database import init_db; init_db()"
+# Fly.io
+fly deploy  # Uses fly.toml
+fly status
+fly logs
 ```
 
-### Configuration Files
+## Workflow Tips
 
-#### `.env.local` Structure
-```bash
-# API Keys (Required)
-OPENAI_API_KEY=sk-proj-...
-ANTHROPIC_API_KEY=sk-ant-...  # Optional, for Claude
+1. **Always run after code changes:**
+   - Backend: `uv run black src/ && uv run ruff check src/ --fix && uv run pyright src/`
+   - Frontend: `cd web && npm run lint && npm run typecheck`
 
-# Supabase (Required for auth)
-SUPABASE_URL=https://xyz.supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...  # Admin operations
+2. **Before commits:**
+   - Run tests: `uv run pytest tests/ -v`
+   - Check types: `uv run pyright src/`
 
-# Database (Default: SQLite for local)
-DATABASE_URL=sqlite:///./dwell.db  # Local development
-# DATABASE_URL=postgresql://user:pass@localhost/dwell  # Production
+3. **Debugging:**
+   - Check Flower UI for task status
+   - Use `logger.debug()` liberally
+   - Monitor Redis: `redis-cli MONITOR`
 
-# Redis (Required for Celery)
-REDIS_URL=redis://localhost:6379/0
+4. **Performance:**
+   - Use `asyncio.gather()` for parallel operations
+   - Implement caching for expensive queries
+   - Profile with `cProfile` for bottlenecks
 
-# Application Settings
-ENV=local
-LOG_LEVEL=INFO
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+## Security Checklist
 
-# Frontend Configuration
-API_BASE_URL=http://localhost:8000  # Backend API URL
+- [ ] Environment variables for all secrets
+- [ ] Pydantic models for input validation
+- [ ] Parameterized database queries
+- [ ] JWT validation on all API endpoints
+- [ ] Rate limiting on expensive operations
+- [ ] CORS properly configured
+- [ ] Dependencies regularly updated (`uv lock --upgrade`)
 
-# AI Configuration
-AI_MODEL=gpt-4-turbo-preview
-AI_TEMPERATURE=0.7
-AI_MAX_TOKENS=1000
-MAX_EVALUATION_COST=10.0  # Max $ to spend on evaluations per user
+## Need Help?
 
-# Ingestor Configuration (if using external sources)
-LISTING_PROJECT_EMAIL=user@example.com
-LISTING_PROJECT_PASSWORD=password
-```
-
-#### `ingestors.yaml` Configuration
-```yaml
-default:
-  listing_project:
-    email: ${LISTING_PROJECT_EMAIL}
-    password: ${LISTING_PROJECT_PASSWORD}
-    cities:
-      - new-york-city
-    max_pages: 5
-    rate_limit_seconds: 2
-
-production:
-  listing_project:
-    cities:
-      - new-york-city
-      - san-francisco
-      - los-angeles
-    max_pages: 20
-```
-
-#### `supervisord.conf` (Production)
-```ini
-[program:fastapi]
-command=uvicorn src.api.main:app --host 0.0.0.0 --port 8000
-directory=/app
-autostart=true
-autorestart=true
-stderr_logfile=/var/log/supervisor/fastapi.err.log
-stdout_logfile=/var/log/supervisor/fastapi.out.log
-
-[program:celery_worker]
-command=celery -A src.workers.celery_app worker --loglevel=info
-directory=/app
-autostart=true
-autorestart=true
-
-[program:celery_beat]
-command=celery -A src.workers.celery_app beat --loglevel=info
-directory=/app
-autostart=true
-autorestart=true
-
-[program:flower]
-command=celery -A src.workers.celery_app flower --port=5555
-directory=/app
-autostart=true
-autorestart=true
-```
-
-### Database Management
-
-```python
-# Initialize database
-from src.core.database import DatabaseManager
-
-# Development
-DatabaseManager.init_db()  # Create all tables
-DatabaseManager.reset_db()  # Drop and recreate (careful!)
-
-# Migrations (if using Alembic)
-alembic init migrations
-alembic revision --autogenerate -m "Add user preferences"
-alembic upgrade head
-```
-
-### Monitoring & Debugging
-
-```bash
-# Health checks
-curl http://localhost:8000/health  # API health
-curl http://localhost:5555  # Flower UI
-
-# View logs
-docker-compose logs -f dwell-app  # Docker logs
-tail -f logs/celery_worker.log  # Celery logs
-
-# Debug database
-uv run python -c "
-from src.core.database import get_db
-from src.models import User
-db = next(get_db())
-users = db.query(User).all()
-print(f'Total users: {len(users)}')
-"
-
-# Monitor Redis
-redis-cli
-> PING
-> INFO stats
-> MONITOR  # Watch commands in real-time
-```
-
-### Performance Tuning
-
-```python
-# Celery configuration (src/workers/celery_app.py)
-app.conf.update(
-    task_serializer='json',
-    result_serializer='json',
-    accept_content=['json'],
-    timezone='UTC',
-    enable_utc=True,
-    worker_max_tasks_per_child=100,  # Restart after 100 tasks
-    task_time_limit=300,  # 5 minute timeout
-    task_soft_time_limit=240,  # 4 minute soft timeout
-)
-
-# Database connection pooling
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=20,  # Number of connections
-    max_overflow=40,  # Maximum overflow connections
-    pool_timeout=30,  # Timeout for getting connection
-    pool_recycle=1800,  # Recycle connections after 30 minutes
-)
-
-# API rate limiting
-from slowapi import Limiter
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-
-@app.get("/api/v1/chat/message")
-@limiter.limit("10/minute")
-async def chat_message(request: Request):
-    ...
-```
-
-## Quick Reference
-
-### Common Tasks
-
-```bash
-# Start development (full stack)
-./local-dev.sh
-
-# Start frontend only
-cd web && npm run dev
-
-# Run backend tests
-uv run pytest tests/ -v
-
-# Format code
-uv run black src/ && uv run ruff check src/ --fix
-
-# Check types
-uv run pyright src/
-
-# View task queue
-open http://localhost:5555  # Flower UI
-
-# Test chat interface
-python dwell_cli.py user_agent --user-id test-user
-
-# Check API health
-curl http://localhost:8000/health
-
-# View frontend
-open http://localhost:5173
-
-# View database
-uv run python -c "from src.core.database import get_db; ..."
-```
-
-### Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| Port already in use | `lsof -i :8000` then `kill -9 <PID>` (API), `lsof -i :5173` (Frontend) |
-| Redis connection refused | Start Redis: `redis-server` or `brew services start redis` |
-| Database locked (SQLite) | Restart services, check for hanging connections |
-| Celery tasks not running | Check Redis connection, restart worker |
-| Type errors | Run `uv run pyright src/` to identify issues |
-| Import errors | Ensure `uv sync` completed, check PYTHONPATH |
-| Supabase auth fails | Verify SUPABASE_URL and SUPABASE_ANON_KEY |
-| OpenAI rate limits | Implement exponential backoff, check API quotas |
-| Frontend build fails | Check Node.js version (20+), run `npm install` in `web/` |
-| Frontend auth issues | Verify Supabase environment variables, check cookie settings |
-| API connection refused | Ensure API_BASE_URL points to running backend (http://localhost:8000) |
-| CORS errors | Update CORS_ORIGINS in backend to include frontend URL |
-
-### Project Structure
-
-```
-dwell/
-├── src/               # Python backend
-│   ├── api/           # FastAPI application
-│   │   ├── routes/    # API endpoints
-│   │   ├── schemas/   # Pydantic models for API
-│   │   └── utils/     # SSE, auth utilities
-│   ├── agents/        # AI agent system
-│   │   ├── user_agent.py     # Conversational agent
-│   │   ├── stream_events.py  # Event types
-│   │   ├── message_formatter.py  # Message formatting
-│   │   └── tools/     # Agent tool implementations
-│   ├── core/          # Core configuration
-│   │   ├── config.py  # Settings management
-│   │   ├── database.py  # Database connection
-│   │   └── supabase_client.py  # Auth client
-│   ├── models/        # SQLAlchemy models
-│   ├── services/      # Business logic
-│   ├── workers/       # Celery tasks
-│   └── ingestors/     # Data ingestion
-├── web/               # Remix frontend
-│   ├── app/           # Remix application
-│   │   ├── routes/    # Frontend routes
-│   │   ├── services/  # API & auth clients
-│   │   ├── root.tsx   # Root component
-│   │   └── entry.*.tsx  # Entry points
-│   ├── public/        # Static assets
-│   ├── package.json   # Frontend dependencies
-│   └── vite.config.ts # Build configuration
-├── tests/             # Test suites
-├── cli/               # CLI commands
-├── logs/              # Application logs
-└── docker/            # Docker configurations
-```
-
-### Key Files
-
-- `local-dev.sh` - Local development environment launcher
-- `docker-compose-local.yml` - Local services configuration
-- `pyproject.toml` - Python dependencies and tools
-- `.env.local` - Environment configuration
-- `ingestors.yaml` - Data source configuration
-- `supervisord.conf` - Production process management
-- `fly.toml` - Fly.io deployment configuration
-
-**Frontend:**
-- `web/package.json` - Frontend dependencies and scripts
-- `web/vite.config.ts` - Vite build configuration
-- `web/tailwind.config.ts` - Tailwind CSS configuration
-- `web/tsconfig.json` - TypeScript configuration
+- API Docs: http://localhost:8000/docs
+- Task Monitor: http://localhost:5555
+- Logs: `tail -f logs/*.log`
+- Database: `uv run python -c "from src.core.database import get_db; ..."`

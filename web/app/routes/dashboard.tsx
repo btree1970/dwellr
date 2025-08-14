@@ -3,27 +3,28 @@ import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import {
   requireAuthenticatedUser,
-  createSupabaseServerClient,
 } from "~/services/auth.server";
-import { apiClient } from "~/services/api.server";
+import { createApiProxy } from "~/services/api.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { user, headers } = await requireAuthenticatedUser(request);
 
-  const { supabase } = createSupabaseServerClient(request);
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
   let apiTestResult = null;
   let apiError = null;
 
-  if (session?.access_token) {
-    try {
-      apiTestResult = await apiClient.testAuth(session.access_token);
-    } catch (error) {
-      apiError =
-        error instanceof Error ? error.message : "Failed to connect to API";
+  try {
+    const { proxy } = await createApiProxy(request);
+    apiTestResult = await proxy.proxy<{ message: string; user: any }>("/test-auth");
+  } catch (error) {
+    if (error instanceof Response) {
+      try {
+        const errorData = await error.text();
+        apiError = errorData || "Failed to connect to API";
+      } catch {
+        apiError = "Failed to connect to API";
+      }
+    } else {
+      apiError = error instanceof Error ? error.message : "Failed to connect to API";
     }
   }
 

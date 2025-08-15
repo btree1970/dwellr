@@ -6,7 +6,7 @@ AI rental property search with conversational interface. Evaluates listings agai
 
 ## Architecture at a Glance
 
-**Stack:** Remix (SSR) + FastAPI + Pydantic AI + Celery + Redis + PostgreSQL/SQLite + Supabase Auth
+**Stack:** Remix (SSR) + FastAPI + Pydantic AI + Celery + Redis + PostgreSQL + Supabase Auth
 
 **Services & Ports:**
 

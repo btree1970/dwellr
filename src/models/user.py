@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from sqlalchemy import JSON, DateTime, Float, Integer, String
+from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -41,6 +41,9 @@ class User(Base):
     preference_history: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
     preference_version: Mapped[int] = mapped_column(Integer, default=1)
     last_preference_update: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    profile_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    profile_completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
     evaluation_credits: Mapped[float] = mapped_column(Float, default=0.0)
 

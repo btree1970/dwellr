@@ -16,45 +16,18 @@ from src.core.config import settings
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 
-engine = create_engine(settings.database_url, echo=False)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 
 class Base(DeclarativeBase):
     pass
 
 
-@contextmanager
-def get_db_with_context() -> Generator[Session, None, None]:
-    db: Session = SessionLocal()
-    try:
-        yield db
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Database error: {e}")
-        raise
-    finally:
-        db.close()
-
-
-def get_db() -> Generator[Session, None, None]:
-    """FastAPI dependency for database session"""
-    db: Session = SessionLocal()
-    try:
-        yield db
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
-
-
 class DatabaseManager:
-    """Manages database operations and migrations using Alembic."""
-
-    def __init__(self):
-        """Initialize the database manager with Alembic configuration."""
+    def __init__(self, database_url: Optional[str] = None):
+        self.database_url = database_url or settings.database_url
+        self.engine = create_engine(self.database_url, echo=False)
+        self.SessionLocal = sessionmaker(
+            autocommit=False, autoflush=False, bind=self.engine
+        )
         self.project_root = Path(__file__).parent.parent.parent
         self.alembic_cfg_path = self.project_root / "alembic.ini"
 
@@ -63,7 +36,7 @@ class DatabaseManager:
             self.alembic_cfg.set_main_option(
                 "script_location", str(self.project_root / "migrations")
             )
-            self.alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
+            self.alembic_cfg.set_main_option("sqlalchemy.url", self.database_url)
             self.has_alembic = True
         else:
             self.has_alembic = False
@@ -82,13 +55,13 @@ class DatabaseManager:
                 self.upgrade("head")
         else:
             logger.warning("Migrations not available, using create_all")
-            Base.metadata.create_all(bind=engine)
+            Base.metadata.create_all(bind=self.engine)
             logger.info("Database tables created successfully")
 
     def drop_db(self) -> None:
         """Drop all database tables."""
         try:
-            Base.metadata.drop_all(bind=engine)
+            Base.metadata.drop_all(bind=self.engine)
             logger.info("Database tables dropped successfully")
         except Exception as e:
             logger.error(f"Error dropping tables: {e}")
@@ -99,24 +72,25 @@ class DatabaseManager:
         logger.warning("Resetting database - all data will be lost!")
 
         if self.has_alembic:
-            try:
-                self.downgrade("base")
-            except Exception as e:
-                logger.error(f"Error during downgrade: {e}")
-                logger.warning("Dropping all tables manually")
-                Base.metadata.drop_all(bind=engine)
+            # Drop all tables including enum types
+            with self.engine.connect() as conn:
+                # Drop all tables
+                conn.execute(text("DROP SCHEMA public CASCADE"))
+                conn.execute(text("CREATE SCHEMA public"))
+                conn.commit()
 
+            # Run migrations to recreate tables
             self.upgrade("head")
             logger.info("Database reset complete")
         else:
             self.drop_db()
-            Base.metadata.create_all(bind=engine)
+            Base.metadata.create_all(bind=self.engine)
             logger.info("Database reset successfully")
 
     def check_connection(self) -> bool:
         """Check database connection."""
         try:
-            with engine.connect() as connection:
+            with self.engine.connect() as connection:
                 connection.execute(text("SELECT 1"))
             logger.info("Database connection successful")
             return True
@@ -133,8 +107,7 @@ class DatabaseManager:
         if not self.has_alembic:
             return None
 
-        eng = create_engine(settings.database_url)
-        with eng.connect() as connection:
+        with self.engine.connect() as connection:
             context = MigrationContext.configure(connection)
             return context.get_current_revision()
 
@@ -294,7 +267,7 @@ class DatabaseManager:
         Returns:
             Dictionary with verification results.
         """
-        inspector = inspect(engine)
+        inspector = inspect(self.engine)
         db_tables = set(inspector.get_table_names())
         model_tables = set(Base.metadata.tables.keys())
 
@@ -306,5 +279,47 @@ class DatabaseManager:
             "is_valid": model_tables.issubset(db_tables | {"alembic_version"}),
         }
 
+    @contextmanager
+    def get_session(self) -> Generator[Session, None, None]:
+        """Get a database session from this manager's engine."""
+        db: Session = self.SessionLocal()
+        try:
+            yield db
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Database error: {e}")
+            raise
+        finally:
+            db.close()
 
-db_manager = DatabaseManager()
+
+# Global db_manager instance - can be replaced by tests
+db_manager: Optional[DatabaseManager] = None
+
+
+def get_db_manager() -> DatabaseManager:
+    """Get the global database manager instance."""
+    global db_manager
+    if db_manager is None:
+        db_manager = DatabaseManager()
+    return db_manager
+
+
+@contextmanager
+def get_db_with_context() -> Generator[Session, None, None]:
+    with get_db_manager().get_session() as db:
+        yield db
+
+
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency for database session"""
+    manager = get_db_manager()
+    session = sessionmaker(autocommit=False, autoflush=False, bind=manager.engine)()
+    try:
+        yield session
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()

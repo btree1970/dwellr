@@ -2,7 +2,6 @@ from datetime import datetime
 
 import pytest
 
-from src.core.database import get_db_with_context
 from src.services.user_service import (
     UserNotFound,
     UserPreferenceUpdates,
@@ -13,7 +12,7 @@ from src.services.user_service import (
 
 class TestUserService:
     def test_create_user_basic(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(name="Test User")
 
@@ -22,7 +21,7 @@ class TestUserService:
             assert user.evaluation_credits == 0.0  # default
 
     def test_create_user_with_kwargs(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(
                 name="Test User",
@@ -37,7 +36,7 @@ class TestUserService:
             assert user.evaluation_credits == 10.0
 
     def test_get_user_by_id(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             created_user = user_service.create_user(name="Test User")
 
@@ -46,14 +45,14 @@ class TestUserService:
             assert retrieved_user.name == "Test User"
 
     def test_get_user_by_id_not_found(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
 
             with pytest.raises(UserNotFound):
                 user_service.get_user_by_id("nonexistent-id")
 
     def test_find_or_create_user_creates_new(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.find_or_create_user(
                 auth_user_id="auth123", name="Test User", evaluation_credits=5.0
@@ -65,7 +64,7 @@ class TestUserService:
             assert user.id is not None
 
     def test_find_or_create_user_finds_existing(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
 
             # Create a user first
@@ -88,7 +87,7 @@ class TestUserService:
 
 class TestUpdateUserPreferences:
     def test_update_basic_fields(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(name="Test User")
 
@@ -108,7 +107,7 @@ class TestUpdateUserPreferences:
             )
 
     def test_update_price_preferences(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(name="Test User")
 
@@ -120,7 +119,7 @@ class TestUpdateUserPreferences:
             assert updated_user.max_price == 3000.0
 
     def test_update_date_preferences(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(name="Test User")
 
@@ -140,7 +139,7 @@ class TestUpdateUserPreferences:
             assert updated_user.date_flexibility_days == 7
 
     def test_partial_update(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(name="Test User", occupation="Engineer")
 
@@ -156,7 +155,7 @@ class TestUpdateUserPreferences:
             assert updated_user.occupation == "Engineer"  # unchanged
 
     def test_tracking_fields_updated(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(name="Test User")
 
@@ -170,7 +169,7 @@ class TestUpdateUserPreferences:
             assert updated_user.last_preference_update > user.created_at
 
     def test_price_range_validation_error(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(name="Test User")
 
@@ -182,7 +181,7 @@ class TestUpdateUserPreferences:
                 user_service.update_user_preferences(user.id, updates)
 
     def test_date_range_validation_error(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(name="Test User")
 
@@ -199,7 +198,7 @@ class TestUpdateUserPreferences:
                 user_service.update_user_preferences(user.id, updates)
 
     def test_cross_field_validation_with_existing_data(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(name="Test User")
 
@@ -216,7 +215,7 @@ class TestUpdateUserPreferences:
                 user_service.update_user_preferences(user.id, updates)
 
     def test_user_not_found(self, clean_database):
-        with get_db_with_context() as db:
+        with clean_database.get_session() as db:
             user_service = UserService(db)
 
             updates = UserPreferenceUpdates(min_price=1000.0)
@@ -239,3 +238,212 @@ class TestUpdateUserPreferences:
     def test_pydantic_forbids_extra_fields(self):
         with pytest.raises(ValueError, match="Extra inputs are not permitted"):
             UserPreferenceUpdates(invalid_field="test value")
+
+
+class TestProfileCompletion:
+    def test_has_minimum_requirements_all_met(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+            user = user_service.create_user(name="Test User")
+
+            updates = UserPreferenceUpdates(
+                min_price=1000.0,
+                max_price=3000.0,
+                preference_profile="Looking for a 2BR apartment in Brooklyn with good transit access. Need pet-friendly building with laundry in unit or building.",
+                preferred_start_date=datetime(2024, 2, 1),
+                preferred_end_date=datetime(2024, 3, 1),
+            )
+            user = user_service.update_user_preferences(user.id, updates)
+
+            has_reqs, missing = user_service.has_minimum_profile_requirements(user)
+            assert has_reqs is True
+            assert missing == []
+
+    def test_has_minimum_requirements_missing_profile(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+            user = user_service.create_user(name="Test User")
+
+            # Test with no preference_profile
+            updates = UserPreferenceUpdates(
+                min_price=1000.0,
+                max_price=3000.0,
+                preferred_start_date=datetime(2024, 2, 1),
+            )
+            user = user_service.update_user_preferences(user.id, updates)
+
+            has_reqs, missing = user_service.has_minimum_profile_requirements(user)
+            assert has_reqs is False
+            assert "detailed preferences (min 100 characters)" in missing
+
+            # Test with too-short preference_profile
+            updates = UserPreferenceUpdates(preference_profile="Too short")
+            user = user_service.update_user_preferences(user.id, updates)
+
+            has_reqs, missing = user_service.has_minimum_profile_requirements(user)
+            assert has_reqs is False
+            assert "detailed preferences (min 100 characters)" in missing
+
+    def test_has_minimum_requirements_missing_budget(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+            user = user_service.create_user(name="Test User")
+
+            long_profile = "Looking for a 2BR apartment in Brooklyn with good transit access. Need pet-friendly building with laundry in unit or building."
+
+            # Missing both min and max price
+            updates = UserPreferenceUpdates(
+                preference_profile=long_profile,
+                preferred_start_date=datetime(2024, 2, 1),
+            )
+            user = user_service.update_user_preferences(user.id, updates)
+
+            has_reqs, missing = user_service.has_minimum_profile_requirements(user)
+            assert has_reqs is False
+            assert "minimum budget" in missing
+            assert "maximum budget" in missing
+
+            # Missing only max price
+            updates = UserPreferenceUpdates(min_price=1000.0)
+            user = user_service.update_user_preferences(user.id, updates)
+
+            has_reqs, missing = user_service.has_minimum_profile_requirements(user)
+            assert has_reqs is False
+            assert "minimum budget" not in missing
+            assert "maximum budget" in missing
+
+    def test_has_minimum_requirements_dates_or_flexibility(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+            user = user_service.create_user(name="Test User")
+
+            long_profile = "Looking for a 2BR apartment in Brooklyn with good transit access. Need pet-friendly building with laundry in unit or building."
+
+            # Test with neither dates nor flexibility
+            updates = UserPreferenceUpdates(
+                min_price=1000.0, max_price=3000.0, preference_profile=long_profile
+            )
+            user = user_service.update_user_preferences(user.id, updates)
+
+            has_reqs, missing = user_service.has_minimum_profile_requirements(user)
+            assert has_reqs is False
+            assert "move-in timeline or date flexibility" in missing
+
+            # Test with date flexibility but no specific dates (should pass)
+            updates = UserPreferenceUpdates(date_flexibility_days=14)
+            user = user_service.update_user_preferences(user.id, updates)
+
+            has_reqs, missing = user_service.has_minimum_profile_requirements(user)
+            assert has_reqs is True
+            assert missing == []
+
+            # Reset flexibility and add specific date (should pass)
+            updates = UserPreferenceUpdates(
+                date_flexibility_days=0, preferred_start_date=datetime(2024, 2, 1)
+            )
+            user = user_service.update_user_preferences(user.id, updates)
+
+            has_reqs, missing = user_service.has_minimum_profile_requirements(user)
+            assert has_reqs is True
+            assert missing == []
+
+    def test_mark_profile_complete_success(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+            user = user_service.create_user(name="Test User")
+
+            # Set up user with all requirements
+            updates = UserPreferenceUpdates(
+                min_price=1000.0,
+                max_price=3000.0,
+                preference_profile="Looking for a 2BR apartment in Brooklyn with good transit access. Need pet-friendly building with laundry in unit or building.",
+                preferred_start_date=datetime(2024, 2, 1),
+                preferred_end_date=datetime(2024, 3, 1),
+            )
+            user = user_service.update_user_preferences(user.id, updates)
+
+            # Verify initial state
+            assert user.profile_completed is False
+            assert user.profile_completed_at is None
+
+            # Mark profile complete
+            completed_user = user_service.mark_profile_complete(user.id)
+
+            assert completed_user.profile_completed is True
+            assert completed_user.profile_completed_at is not None
+            assert completed_user.profile_completed_at > completed_user.created_at
+
+    def test_mark_profile_complete_missing_requirements(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+            user = user_service.create_user(name="Test User")
+
+            # User with incomplete profile
+            updates = UserPreferenceUpdates(min_price=1000.0)
+            user = user_service.update_user_preferences(user.id, updates)
+
+            with pytest.raises(
+                UserValidationError, match="Cannot mark profile complete. Missing:"
+            ) as exc_info:
+                user_service.mark_profile_complete(user.id)
+
+            # Verify error message contains missing items
+            assert "detailed preferences" in str(exc_info.value)
+            assert "maximum budget" in str(exc_info.value)
+            assert "move-in timeline" in str(exc_info.value)
+
+    def test_mark_profile_complete_user_not_found(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+
+            with pytest.raises(UserNotFound):
+                user_service.mark_profile_complete("nonexistent-id")
+
+    def test_reset_profile_completion(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+            user = user_service.create_user(name="Test User")
+
+            # Set up and complete profile
+            updates = UserPreferenceUpdates(
+                min_price=1000.0,
+                max_price=3000.0,
+                preference_profile="Looking for a 2BR apartment in Brooklyn with good transit access. Need pet-friendly building with laundry in unit or building.",
+                preferred_start_date=datetime(2024, 2, 1),
+            )
+            user = user_service.update_user_preferences(user.id, updates)
+            completed_user = user_service.mark_profile_complete(user.id)
+
+            assert completed_user.profile_completed is True
+            assert completed_user.profile_completed_at is not None
+
+            # Reset profile
+            reset_user = user_service.reset_profile_completion(user.id)
+
+            assert reset_user.profile_completed is False
+            assert reset_user.profile_completed_at is None
+            # Preferences should remain intact
+            assert reset_user.min_price == 1000.0
+            assert reset_user.max_price == 3000.0
+
+    def test_reset_profile_already_incomplete(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+            user = user_service.create_user(name="Test User")
+
+            # User starts with incomplete profile
+            assert user.profile_completed is False
+            assert user.profile_completed_at is None
+
+            # Reset should work without error
+            reset_user = user_service.reset_profile_completion(user.id)
+
+            assert reset_user.profile_completed is False
+            assert reset_user.profile_completed_at is None
+
+    def test_reset_profile_user_not_found(self, clean_database):
+        with clean_database.get_session() as db:
+            user_service = UserService(db)
+
+            with pytest.raises(UserNotFound):
+                user_service.reset_profile_completion("nonexistent-id")

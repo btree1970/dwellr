@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, List, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
@@ -149,3 +149,47 @@ class UserService:
         except Exception as e:
             self.db.rollback()
             raise UserServiceException(f"Error updating user preferences: {e}")
+
+    def has_minimum_profile_requirements(self, user: User) -> Tuple[bool, List[str]]:
+        missing: List[str] = []
+
+        # 100 chars ensures we have enough context for meaningful recommendations
+        if not user.preference_profile or len(user.preference_profile) < 100:
+            missing.append("detailed preferences (min 100 characters)")
+
+        if user.min_price is None:
+            missing.append("minimum budget")
+        if user.max_price is None:
+            missing.append("maximum budget")
+
+        # Either specific dates OR flexibility is required to search listings
+        if not user.preferred_start_date and user.date_flexibility_days == 0:
+            missing.append("move-in timeline or date flexibility")
+
+        return (len(missing) == 0, missing)
+
+    def mark_profile_complete(self, user_id: str) -> User:
+        user = self.get_user_by_id(user_id)
+
+        has_reqs, missing = self.has_minimum_profile_requirements(user)
+        if not has_reqs:
+            raise UserValidationError(
+                f"Cannot mark profile complete. Missing: {', '.join(missing)}"
+            )
+
+        user.profile_completed = True
+        user.profile_completed_at = datetime.now(timezone.utc)
+
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def reset_profile_completion(self, user_id: str) -> User:
+        user = self.get_user_by_id(user_id)
+
+        user.profile_completed = False
+        user.profile_completed_at = None
+
+        self.db.commit()
+        self.db.refresh(user)
+        return user

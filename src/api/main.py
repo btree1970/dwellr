@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from src.api.deps import CurrentUser
 from src.api.routes import chat_router
 from src.core.config import settings
-from src.core.database import db_manager
+from src.core.database import get_db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if settings.env in ["local", "development"]:
         logger.info("Initializing database tables for development...")
         try:
-            db_manager.init_db()
+            get_db_manager().init_db()
             logger.info("Database tables initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
@@ -45,7 +45,7 @@ app.include_router(chat_router, prefix="/api/v1")
 @app.get("/health")
 async def health_check() -> Dict[str, str]:
     """Health check endpoint"""
-    db_healthy = db_manager.check_connection()
+    db_healthy = get_db_manager().check_connection()
     return {
         "status": "healthy" if db_healthy else "unhealthy",
         "database": "connected" if db_healthy else "disconnected",

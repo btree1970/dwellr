@@ -60,6 +60,9 @@ DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
 REDIS_URL=redis://localhost:6379/0
 SUPABASE_URL=http://127.0.0.1:54321
 OPENAI_API_KEY=your_key_here
+
+# macOS only: For tests with testcontainers
+sudo ln -s ~/.docker/run/docker.sock /var/run/docker.sock
 ```
 
 ### Core Commands

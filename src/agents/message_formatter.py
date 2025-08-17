@@ -103,9 +103,10 @@ class MessageHistoryFormatter:
         """Extract string content from various content types."""
         if isinstance(content, str):
             return content
-        elif isinstance(content, (list, tuple)) and content:
+        elif isinstance(content, (list, tuple)):
             # Handle list of content parts - join them
-            return " ".join(str(item) for item in content if item)
+            # We're intentionally handling Any type here
+            return " ".join(str(item) for item in content if item)  # type: ignore
         else:
             return str(content) if content else ""
 
@@ -113,8 +114,6 @@ class MessageHistoryFormatter:
         """Format tool arguments for display."""
         if args is None:
             return ""
-        elif isinstance(args, dict):
-            return str(args)
         else:
             return str(args)
 

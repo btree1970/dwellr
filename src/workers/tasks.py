@@ -5,7 +5,7 @@ from celery.exceptions import Retry
 from celery.utils.log import get_task_logger
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.core.database import get_db_with_context
+from src.core.database import get_db_manager
 from src.jobs.job_types import JobType
 from src.models.task import Task
 from src.models.user import User
@@ -49,7 +49,7 @@ def scheduled_evaluation_task():
 def process_task(task_id: str) -> Dict[str, Any]:
     logger.info(f"Starting task {task_id}")
 
-    with get_db_with_context() as db:
+    with get_db_manager().get_session() as db:
         task = db.query(Task).filter_by(id=task_id).first()
         if not task:
             logger.error(f"Task {task_id} not found in database")
@@ -93,7 +93,7 @@ def process_task(task_id: str) -> Dict[str, Any]:
 def handle_evaluate_listings(task: Task) -> Dict[str, Any]:
     """Handle listing evaluation task - creates individual tasks for each eligible user"""
 
-    with get_db_with_context() as db:
+    with get_db_manager().get_session() as db:
         users_query = db.query(User).filter(
             User.preference_profile.isnot(None),
             User.evaluation_credits >= MIN_CREDIT_THRESHOLD,
@@ -145,7 +145,7 @@ def handle_evaluate_listings(task: Task) -> Dict[str, Any]:
 def evaluate_user_listings(self: Any, user_id: str) -> Dict[str, Any]:
     """Evaluate listings for a single user - Celery handles retries automatically"""
 
-    with get_db_with_context() as db:
+    with get_db_manager().get_session() as db:
         user = db.query(User).filter_by(id=user_id).first()
         if not user:
             logger.error(f"User {user_id} not found")

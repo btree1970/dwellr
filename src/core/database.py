@@ -25,7 +25,7 @@ class DatabaseManager:
     def __init__(self, database_url: Optional[str] = None):
         self.database_url = database_url or settings.database_url
         self.engine = create_engine(self.database_url, echo=False)
-        self.SessionLocal = sessionmaker(
+        self.session_factory = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
         )
         self.project_root = Path(__file__).parent.parent.parent
@@ -58,15 +58,6 @@ class DatabaseManager:
             Base.metadata.create_all(bind=self.engine)
             logger.info("Database tables created successfully")
 
-    def drop_db(self) -> None:
-        """Drop all database tables."""
-        try:
-            Base.metadata.drop_all(bind=self.engine)
-            logger.info("Database tables dropped successfully")
-        except Exception as e:
-            logger.error(f"Error dropping tables: {e}")
-            raise
-
     def reset_db(self) -> None:
         """Reset database using migrations if available."""
         logger.warning("Resetting database - all data will be lost!")
@@ -83,7 +74,7 @@ class DatabaseManager:
             self.upgrade("head")
             logger.info("Database reset complete")
         else:
-            self.drop_db()
+            Base.metadata.drop_all(bind=self.engine)
             Base.metadata.create_all(bind=self.engine)
             logger.info("Database reset successfully")
 
@@ -281,11 +272,14 @@ class DatabaseManager:
 
     @contextmanager
     def get_session(self) -> Generator[Session, None, None]:
-        """Get a database session from this manager's engine."""
-        db: Session = self.SessionLocal()
+        """Get a database session from this manager's engine.
+
+        Note: Caller must explicitly commit when needed.
+        Auto-rollback on exceptions.
+        """
+        db: Session = self.session_factory()
         try:
             yield db
-            db.commit()
         except Exception as e:
             db.rollback()
             logger.error(f"Database error: {e}")
@@ -299,23 +293,16 @@ db_manager: Optional[DatabaseManager] = None
 
 
 def get_db_manager() -> DatabaseManager:
-    """Get the global database manager instance."""
     global db_manager
     if db_manager is None:
         db_manager = DatabaseManager()
     return db_manager
 
 
-@contextmanager
-def get_db_with_context() -> Generator[Session, None, None]:
-    with get_db_manager().get_session() as db:
-        yield db
-
-
 def get_db() -> Generator[Session, None, None]:
     """FastAPI dependency for database session"""
     manager = get_db_manager()
-    session = sessionmaker(autocommit=False, autoflush=False, bind=manager.engine)()
+    session = manager.session_factory()
     try:
         yield session
     except Exception:

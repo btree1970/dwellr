@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 from src.agents.listing_agent import EvaluationResult
-from src.core.database import get_db_with_context
+from src.core.database import get_db_manager
 from src.models.user import User
 from src.workers.tasks import evaluate_user_listings
 from tests.fixtures.test_data import create_multiple_listings, create_user_with_credits
@@ -20,7 +20,7 @@ class TestEvaluationWorkflow:
 
         listings = create_multiple_listings(count=3, base_price=800.0)
 
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             db.add(user)
             db.add_all(listings)
             db.commit()
@@ -52,7 +52,7 @@ class TestEvaluationWorkflow:
             assert result["evaluations_completed"] > 0
             assert result["total_cost"] > 0.0
 
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             updated_user = db.query(User).filter_by(id=user_id).first()
             assert updated_user.evaluation_credits < 5.00
             assert updated_user.evaluation_credits > 0.0
@@ -64,7 +64,7 @@ class TestEvaluationWorkflow:
             preference_profile="Looking for cheap places",
         )
 
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             db.add(user)
             db.commit()
             user_id = user.id
@@ -82,7 +82,7 @@ class TestEvaluationWorkflow:
             preference_profile=None,
         )
 
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             db.add(user)
             db.commit()
             user_id = user.id
@@ -100,7 +100,7 @@ class TestEvaluationWorkflow:
         )
         listings = create_multiple_listings(count=1, base_price=500.0)
 
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             db.add(user)
             db.add_all(listings)
             db.commit()
@@ -133,6 +133,6 @@ class TestEvaluationWorkflow:
             assert result["total_cost"] == 0.50
             assert result["remaining_credits"] == 1.50
 
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             updated_user = db.query(User).filter_by(id=user_id).first()
             assert updated_user.evaluation_credits == 1.50

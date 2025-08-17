@@ -13,11 +13,13 @@ class TestEvaluation:
         )
 
         with (
-            patch("src.workers.tasks.get_db_with_context") as mock_get_db,
+            patch("src.workers.tasks.get_db_manager") as mock_get_manager,
             patch("src.workers.tasks.app.send_task") as mock_send_task,
         ):
             mock_db = Mock()
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_manager.return_value.get_session.return_value.__enter__.return_value = (
+                mock_db
+            )
 
             eligible_users = [user_sufficient_credits]
             mock_query = Mock()
@@ -43,11 +45,13 @@ class TestEvaluation:
         ]
 
         with (
-            patch("src.workers.tasks.get_db_with_context") as mock_get_db,
+            patch("src.workers.tasks.get_db_manager") as mock_get_manager,
             patch("src.workers.tasks.app.send_task") as mock_send_task,
         ):
             mock_db = Mock()
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_manager.return_value.get_session.return_value.__enter__.return_value = (
+                mock_db
+            )
 
             mock_query = Mock()
             mock_query.count.return_value = len(users)
@@ -77,11 +81,13 @@ class TestEvaluation:
         ]
 
         with (
-            patch("src.workers.tasks.get_db_with_context") as mock_get_db,
+            patch("src.workers.tasks.get_db_manager") as mock_get_manager,
             patch("src.workers.tasks.app.send_task") as mock_send_task,
         ):
             mock_db = Mock()
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_manager.return_value.get_session.return_value.__enter__.return_value = (
+                mock_db
+            )
 
             mock_query = Mock()
             mock_query.count.return_value = len(users)
@@ -132,11 +138,13 @@ class TestEvaluation:
         ]
 
         with (
-            patch("src.workers.tasks.get_db_with_context") as mock_get_db,
+            patch("src.workers.tasks.get_db_manager") as mock_get_manager,
             patch("src.workers.tasks.app.send_task") as mock_send_task,
         ):
             mock_db = Mock()
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_manager.return_value.get_session.return_value.__enter__.return_value = (
+                mock_db
+            )
 
             eligible_users = [users_at_threshold[0], users_at_threshold[1]]
             mock_query = Mock()
@@ -154,9 +162,11 @@ class TestEvaluation:
             assert result["tasks_created"] == 2
 
     def test_empty_user_set_handling(self):
-        with patch("src.workers.tasks.get_db_with_context") as mock_get_db:
+        with patch("src.workers.tasks.get_db_manager") as mock_get_manager:
             mock_db = Mock()
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_manager.return_value.get_session.return_value.__enter__.return_value = (
+                mock_db
+            )
 
             mock_query = Mock()
             mock_query.count.return_value = 0

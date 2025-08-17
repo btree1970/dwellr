@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.core.database import get_db_with_context
+from src.core.database import get_db_manager
 from src.models.listing import Listing, ListingType, PricePeriod
 from src.models.user import User
 from src.services.listing_service import ListingService
@@ -11,7 +11,7 @@ class TestPriceNormalizationIntegration:
 
     def test_monthly_user_filtering(self, db_with_test_data):
         """Test filtering for user with monthly price preferences"""
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             monthly_user = db.query(User).filter_by(id="user_monthly").first()
             agent = ListingService(db=db, agent=None)
 
@@ -44,7 +44,7 @@ class TestPriceNormalizationIntegration:
 
     def test_daily_user_filtering(self, db_with_test_data):
         """Test filtering for user with daily price preferences"""
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             daily_user = db.query(User).filter_by(id="user_daily").first()
             agent = ListingService(db=db)
 
@@ -77,7 +77,7 @@ class TestPriceNormalizationIntegration:
 
     def test_weekly_user_filtering(self, db_with_test_data):
         """Test filtering for user with weekly price preferences"""
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             weekly_user = db.query(User).filter_by(id="user_weekly").first()
             agent = ListingService(db=db)
 
@@ -110,7 +110,7 @@ class TestPriceNormalizationIntegration:
 
     def test_cross_period_consistency(self, db_with_test_data):
         """Test that equivalent user preferences yield same results across periods"""
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             # Create equivalent users with different price periods
             # All should have same total budget for 30 days: $3000
             daily_user = User(
@@ -192,7 +192,7 @@ class TestDateFlexibilityIntegration:
 
     def test_date_flexibility_filtering(self, db_with_test_data):
         """Test that date flexibility expands candidate pool"""
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             # Create a listing that's slightly outside the preferred date range
             flexible_listing = Listing(
                 id="flexible_listing",
@@ -228,7 +228,7 @@ class TestEdgeCases:
 
     def test_no_matching_listings(self, clean_database):
         """Test filtering when no listings match criteria"""
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             # Create user with very restrictive budget
             restrictive_user = User(
                 id="restrictive_user",
@@ -268,7 +268,7 @@ class TestEdgeCases:
 
     def test_single_day_stay(self, clean_database):
         """Test filtering for single day stays"""
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             single_day_user = User(
                 id="single_day_user",
                 name="Single Day User",

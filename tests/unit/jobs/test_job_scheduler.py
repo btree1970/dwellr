@@ -1,4 +1,4 @@
-from src.core.database import get_db_with_context
+from src.core.database import get_db_manager
 from src.jobs.job_types import JobType
 from src.jobs.scheduler import JobScheduler
 from src.models.task import Task
@@ -14,7 +14,7 @@ def test_job_scheduler_creates_task(clean_database):
 
     assert task_id is not None
 
-    with get_db_with_context() as db:
+    with get_db_manager().get_session() as db:
         task = db.query(Task).filter_by(id=task_id).first()
         assert task is not None
         assert task.task_type == "evaluate_listings"

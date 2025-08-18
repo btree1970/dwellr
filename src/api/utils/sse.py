@@ -19,26 +19,11 @@ async def stream_agent_response(
     Yields:
         str: SSE formatted messages
     """
-    try:
-        async for event in agent_stream:
-            try:
-                yield format_sse_event(event.model_dump())
-            except Exception as e:
-                logger.error(f"Error processing agent event: {e}")
-                error_event = {
-                    "type": "error",
-                    "error": f"Stream processing error: {str(e)}",
-                }
-                yield format_sse_event(error_event)
+    async for event in agent_stream:
+        yield format_sse_event(event.model_dump())
 
-        # Send completion event
-        done_event = {"type": "done"}
-        yield format_sse_event(done_event)
-
-    except Exception as e:
-        logger.error(f"Error in agent response stream: {e}")
-        error_event = {"type": "error", "error": f"Agent stream error: {str(e)}"}
-        yield format_sse_event(error_event)
+    # Send completion event when stream ends
+    yield format_sse_event({"type": "done"})
 
 
 def format_sse_event(data: Dict[str, Any]) -> str:
@@ -55,15 +40,18 @@ def format_sse_event(data: Dict[str, Any]) -> str:
     return f"data: {json_data}\n\n"
 
 
-def create_error_sse_event(error_message: str) -> str:
+async def create_error_stream(
+    error_message: str, error_type: str = "error"
+) -> AsyncGenerator[str, None]:
     """
-    Create an SSE formatted error event.
+    Create an async generator that yields a single SSE error event.
 
     Args:
         error_message: Error message to send
+        error_type: Type of error (default: "error")
 
-    Returns:
+    Yields:
         str: SSE formatted error event
     """
-    error_event = {"type": "error", "error": error_message}
-    return format_sse_event(error_event)
+    error_event = {"type": error_type, "error": error_message}
+    yield format_sse_event(error_event)

@@ -1,12 +1,12 @@
 from datetime import datetime
 
 import pytest
+from returns.result import Failure, Success
 
 from src.services.user_service import (
     UserNotFound,
     UserPreferenceUpdates,
     UserService,
-    UserValidationError,
 )
 
 
@@ -97,7 +97,9 @@ class TestUpdateUserPreferences:
                 preference_profile="Looking for a quiet neighborhood with good transit access",
             )
 
-            updated_user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            updated_user = result.unwrap()
 
             assert updated_user.min_price == 1000.0
             assert updated_user.max_price == 3000.0
@@ -113,7 +115,9 @@ class TestUpdateUserPreferences:
 
             updates = UserPreferenceUpdates(min_price=1000.0, max_price=3000.0)
 
-            updated_user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            updated_user = result.unwrap()
 
             assert updated_user.min_price == 1000.0
             assert updated_user.max_price == 3000.0
@@ -132,7 +136,9 @@ class TestUpdateUserPreferences:
                 date_flexibility_days=7,
             )
 
-            updated_user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            updated_user = result.unwrap()
 
             assert updated_user.preferred_start_date == start_date
             assert updated_user.preferred_end_date == end_date
@@ -148,7 +154,9 @@ class TestUpdateUserPreferences:
             db.commit()
 
             updates = UserPreferenceUpdates(min_price=1500.0)
-            updated_user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            updated_user = result.unwrap()
 
             assert updated_user.min_price == 1500.0
             assert updated_user.max_price == 2000.0  # unchanged
@@ -162,7 +170,9 @@ class TestUpdateUserPreferences:
             original_version = user.preference_version
 
             updates = UserPreferenceUpdates(preference_profile="Updated preferences")
-            updated_user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            updated_user = result.unwrap()
 
             assert updated_user.preference_version == original_version + 1
             assert updated_user.last_preference_update is not None
@@ -175,10 +185,9 @@ class TestUpdateUserPreferences:
 
             updates = UserPreferenceUpdates(min_price=3000.0, max_price=1000.0)
 
-            with pytest.raises(
-                UserValidationError, match="Minimum price cannot exceed maximum price"
-            ):
-                user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Failure)
+            assert "Minimum price cannot exceed maximum price" in result.failure()
 
     def test_date_range_validation_error(self, clean_database):
         with clean_database.get_session() as db:
@@ -192,10 +201,9 @@ class TestUpdateUserPreferences:
                 preferred_start_date=start_date, preferred_end_date=end_date
             )
 
-            with pytest.raises(
-                UserValidationError, match="End date must be after start date"
-            ):
-                user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Failure)
+            assert "End date must be after start date" in result.failure()
 
     def test_cross_field_validation_with_existing_data(self, clean_database):
         with clean_database.get_session() as db:
@@ -209,10 +217,9 @@ class TestUpdateUserPreferences:
             # Try to set min_price higher than existing max_price
             updates = UserPreferenceUpdates(min_price=3000.0)
 
-            with pytest.raises(
-                UserValidationError, match="Minimum price cannot exceed maximum price"
-            ):
-                user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Failure)
+            assert "Minimum price cannot exceed maximum price" in result.failure()
 
     def test_user_not_found(self, clean_database):
         with clean_database.get_session() as db:
@@ -253,7 +260,9 @@ class TestProfileCompletion:
                 preferred_start_date=datetime(2024, 2, 1),
                 preferred_end_date=datetime(2024, 3, 1),
             )
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
             has_reqs, missing = user_service.has_minimum_profile_requirements(user)
             assert has_reqs is True
@@ -270,7 +279,9 @@ class TestProfileCompletion:
                 max_price=3000.0,
                 preferred_start_date=datetime(2024, 2, 1),
             )
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
             has_reqs, missing = user_service.has_minimum_profile_requirements(user)
             assert has_reqs is False
@@ -278,7 +289,9 @@ class TestProfileCompletion:
 
             # Test with too-short preference_profile
             updates = UserPreferenceUpdates(preference_profile="Too short")
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
             has_reqs, missing = user_service.has_minimum_profile_requirements(user)
             assert has_reqs is False
@@ -296,7 +309,9 @@ class TestProfileCompletion:
                 preference_profile=long_profile,
                 preferred_start_date=datetime(2024, 2, 1),
             )
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
             has_reqs, missing = user_service.has_minimum_profile_requirements(user)
             assert has_reqs is False
@@ -305,7 +320,9 @@ class TestProfileCompletion:
 
             # Missing only max price
             updates = UserPreferenceUpdates(min_price=1000.0)
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
             has_reqs, missing = user_service.has_minimum_profile_requirements(user)
             assert has_reqs is False
@@ -323,7 +340,9 @@ class TestProfileCompletion:
             updates = UserPreferenceUpdates(
                 min_price=1000.0, max_price=3000.0, preference_profile=long_profile
             )
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
             has_reqs, missing = user_service.has_minimum_profile_requirements(user)
             assert has_reqs is False
@@ -331,7 +350,9 @@ class TestProfileCompletion:
 
             # Test with date flexibility but no specific dates (should pass)
             updates = UserPreferenceUpdates(date_flexibility_days=14)
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
             has_reqs, missing = user_service.has_minimum_profile_requirements(user)
             assert has_reqs is True
@@ -341,7 +362,9 @@ class TestProfileCompletion:
             updates = UserPreferenceUpdates(
                 date_flexibility_days=0, preferred_start_date=datetime(2024, 2, 1)
             )
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
             has_reqs, missing = user_service.has_minimum_profile_requirements(user)
             assert has_reqs is True
@@ -360,14 +383,18 @@ class TestProfileCompletion:
                 preferred_start_date=datetime(2024, 2, 1),
                 preferred_end_date=datetime(2024, 3, 1),
             )
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
             # Verify initial state
             assert user.profile_completed is False
             assert user.profile_completed_at is None
 
             # Mark profile complete
-            completed_user = user_service.mark_profile_complete(user.id)
+            result = user_service.mark_profile_complete(user.id)
+            assert isinstance(result, Success)
+            completed_user = result.unwrap()
 
             assert completed_user.profile_completed is True
             assert completed_user.profile_completed_at is not None
@@ -380,17 +407,19 @@ class TestProfileCompletion:
 
             # User with incomplete profile
             updates = UserPreferenceUpdates(min_price=1000.0)
-            user = user_service.update_user_preferences(user.id, updates)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
 
-            with pytest.raises(
-                UserValidationError, match="Cannot mark profile complete. Missing:"
-            ) as exc_info:
-                user_service.mark_profile_complete(user.id)
+            result = user_service.mark_profile_complete(user.id)
+            assert isinstance(result, Failure)
+            error_message = result.failure()
 
             # Verify error message contains missing items
-            assert "detailed preferences" in str(exc_info.value)
-            assert "maximum budget" in str(exc_info.value)
-            assert "move-in timeline" in str(exc_info.value)
+            assert "Cannot mark profile complete. Missing:" in error_message
+            assert "detailed preferences" in error_message
+            assert "maximum budget" in error_message
+            assert "move-in timeline" in error_message
 
     def test_mark_profile_complete_user_not_found(self, clean_database):
         with clean_database.get_session() as db:
@@ -411,8 +440,12 @@ class TestProfileCompletion:
                 preference_profile="Looking for a 2BR apartment in Brooklyn with good transit access. Need pet-friendly building with laundry in unit or building.",
                 preferred_start_date=datetime(2024, 2, 1),
             )
-            user = user_service.update_user_preferences(user.id, updates)
-            completed_user = user_service.mark_profile_complete(user.id)
+            result = user_service.update_user_preferences(user.id, updates)
+            assert isinstance(result, Success)
+            user = result.unwrap()
+            result = user_service.mark_profile_complete(user.id)
+            assert isinstance(result, Success)
+            completed_user = result.unwrap()
 
             assert completed_user.profile_completed is True
             assert completed_user.profile_completed_at is not None

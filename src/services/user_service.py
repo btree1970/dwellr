@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, List, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field
+from returns.result import Failure, Result, Success
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -53,6 +54,24 @@ class UserPreferenceUpdates(BaseModel):
     )
 
 
+def _validate_price_range(
+    min_price: Optional[float], max_price: Optional[float]
+) -> Result[None, str]:
+    """Validate that min_price doesn't exceed max_price."""
+    if min_price is not None and max_price is not None and min_price > max_price:
+        return Failure("Minimum price cannot exceed maximum price")
+    return Success(None)
+
+
+def _validate_date_range(
+    start_date: Optional[datetime], end_date: Optional[datetime]
+) -> Result[None, str]:
+    """Validate that start_date is before end_date."""
+    if start_date is not None and end_date is not None and start_date >= end_date:
+        return Failure("End date must be after start date")
+    return Success(None)
+
+
 class UserService:
     def __init__(self, db: Session):
         self.db = db
@@ -96,24 +115,32 @@ class UserService:
 
     def update_user_preferences(
         self, user_id: str, updates: UserPreferenceUpdates
-    ) -> User:
+    ) -> Result[User, str]:
+        """Update user preferences with validation.
+
+        Returns:
+            Success(User) if update succeeded
+            Failure(str) if validation failed
+
+        Raises:
+            UserNotFound: If user doesn't exist (truly exceptional)
+            UserServiceException: For database errors (truly exceptional)
+        """
         try:
             user = self.get_user_by_id(user_id)
 
-            # Cross-field validation that Pydantic can't handle
+            # Validate price range
             min_price = (
                 updates.min_price if updates.min_price is not None else user.min_price
             )
             max_price = (
                 updates.max_price if updates.max_price is not None else user.max_price
             )
-            if (
-                min_price is not None
-                and max_price is not None
-                and min_price > max_price
-            ):
-                raise UserValidationError("Minimum price cannot exceed maximum price")
+            price_validation = _validate_price_range(min_price, max_price)
+            if isinstance(price_validation, Failure):
+                return price_validation
 
+            # Validate date range
             start_date = (
                 updates.preferred_start_date
                 if updates.preferred_start_date is not None
@@ -124,12 +151,9 @@ class UserService:
                 if updates.preferred_end_date is not None
                 else user.preferred_end_date
             )
-            if (
-                start_date is not None
-                and end_date is not None
-                and start_date >= end_date
-            ):
-                raise UserValidationError("End date must be after start date")
+            date_validation = _validate_date_range(start_date, end_date)
+            if isinstance(date_validation, Failure):
+                return date_validation
 
             # Update provided fields
             update_data = updates.model_dump(exclude_unset=True)
@@ -142,12 +166,14 @@ class UserService:
 
             self.db.commit()
             self.db.refresh(user)
-            return user
+            return Success(user)
 
-        except (UserNotFound, UserValidationError):
+        except UserNotFound:
+            # Let truly exceptional cases bubble up
             raise
         except Exception as e:
             self.db.rollback()
+            # Database errors are truly exceptional
             raise UserServiceException(f"Error updating user preferences: {e}")
 
     def has_minimum_profile_requirements(self, user: User) -> Tuple[bool, List[str]]:
@@ -168,12 +194,18 @@ class UserService:
 
         return (len(missing) == 0, missing)
 
-    def mark_profile_complete(self, user_id: str) -> User:
+    def mark_profile_complete(self, user_id: str) -> Result[User, str]:
+        """Mark user profile as complete if all requirements are met.
+
+        Returns:
+            Success(User) if profile was marked complete
+            Failure(str) if requirements are missing
+        """
         user = self.get_user_by_id(user_id)
 
         has_reqs, missing = self.has_minimum_profile_requirements(user)
         if not has_reqs:
-            raise UserValidationError(
+            return Failure(
                 f"Cannot mark profile complete. Missing: {', '.join(missing)}"
             )
 
@@ -182,7 +214,7 @@ class UserService:
 
         self.db.commit()
         self.db.refresh(user)
-        return user
+        return Success(user)
 
     def reset_profile_completion(self, user_id: str) -> User:
         user = self.get_user_by_id(user_id)

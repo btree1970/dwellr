@@ -116,7 +116,7 @@ class UserAgent:
         except Exception as e:
             self._db_session.rollback()
             logger.error(f"Failed to create session: {e}")
-            raise
+            raise e
 
     async def chat(
         self, user_prompt: Optional[str] = None
@@ -177,7 +177,7 @@ class UserAgent:
 
         except Exception as e:
             logger.error(f"Error during chat: {e}")
-            raise e
+            raise
 
     def get_message_history(self) -> List[ChatMessage]:
         """Get formatted message history as ChatMessage objects."""

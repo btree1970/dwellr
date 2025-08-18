@@ -1,13 +1,13 @@
 from typing import Any, Dict
 
 from pydantic_ai import RunContext
+from returns.result import Success
 
 from src.agents.deps import UserAgentDependencies
 from src.services.user_service import (
     UserNotFound,
     UserPreferenceUpdates,
     UserService,
-    UserValidationError,
 )
 
 
@@ -18,29 +18,29 @@ def update_user_preferences(
     print("how are you doing")
     try:
         user_service = UserService(ctx.deps.db)
-        updated_user = user_service.update_user_preferences(
-            ctx.deps.user.id, preferences
-        )
+        result = user_service.update_user_preferences(ctx.deps.user.id, preferences)
 
-        return {
-            "success": True,
-            "message": "Preferences updated successfully",
-            "updated_preferences": {
-                "preference_version": updated_user.preference_version,
-                "last_update": (
-                    updated_user.last_preference_update.isoformat()
-                    if updated_user.last_preference_update
-                    else None
-                ),
-            },
-        }
+        if isinstance(result, Success):
+            updated_user = result.unwrap()
+            return {
+                "success": True,
+                "message": "Preferences updated successfully",
+                "updated_preferences": {
+                    "preference_version": updated_user.preference_version,
+                    "last_update": (
+                        updated_user.last_preference_update.isoformat()
+                        if updated_user.last_preference_update
+                        else None
+                    ),
+                },
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Validation error: {result.failure()}",
+                "updated_preferences": {},
+            }
 
-    except UserValidationError as e:
-        return {
-            "success": False,
-            "message": f"Validation error: {str(e)}",
-            "updated_preferences": {},
-        }
     except UserNotFound as e:
         return {
             "success": False,

@@ -7,17 +7,23 @@ from sqlalchemy.orm import Session
 
 from src.agents.user_agent import UserAgent
 from src.api.deps import CurrentUser, get_db
-from src.api.exceptions import ChatMessageException, ChatSessionException
 from src.api.schemas.chat import (
     ChatHistoryMessage,
     ChatHistoryResponse,
     ChatMessageRequest,
 )
-from src.api.utils.sse import create_error_sse_event, stream_agent_response
+from src.api.utils.sse import create_error_stream, stream_agent_response
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "*",
+}
 
 
 @router.post("/message")
@@ -30,12 +36,9 @@ async def send_message(
     Send a message to the agent and stream the response via Server-Sent Events.
 
     The session is automatically created or loaded for the authenticated user.
+    Empty messages are allowed - the agent will initiate conversation for new sessions.
     """
     try:
-        # Validate message
-        if not request.message.strip():
-            raise ChatMessageException("Message cannot be empty")
-
         # Initialize UserAgent (automatically handles session management)
         user_agent = UserAgent(db_session=db, user=current_user)
 
@@ -50,33 +53,27 @@ async def send_message(
         return StreamingResponse(
             response_stream,
             media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "*",
-            },
+            headers=SSE_HEADERS,
         )
 
     except ValueError as e:
-        # Handle validation errors from UserAgent
-        logger.error(f"Validation error in chat message: {e}")
-        error_stream = async_error_stream(str(e), "validation_error")
+        logger.info(f"Value Error: {e}")
+
         return StreamingResponse(
-            error_stream,
+            create_error_stream(str(e), "validation_error"),
             media_type="text/event-stream",
             status_code=400,
+            headers=SSE_HEADERS,
         )
 
     except Exception as e:
-        logger.error(f"Error processing chat message: {e}")
-        error_stream = async_error_stream(
-            f"Agent processing failed: {str(e)}", "agent_error"
-        )
+        logger.error(f"Unexpected error processing chat message: {e}", exc_info=True)
+
         return StreamingResponse(
-            error_stream,
+            create_error_stream(f"Agent processing failed: {str(e)}", "agent_error"),
             media_type="text/event-stream",
             status_code=500,
+            headers=SSE_HEADERS,
         )
 
 
@@ -87,51 +84,41 @@ async def get_chat_history(
 ) -> ChatHistoryResponse:
     """
     Get the conversation history for the current user's session.
+
+    UserAgent handles session management gracefully:
+    - Returns empty history if no session exists
+    - Creates new session if existing one can't be loaded
     """
-    try:
-        user_agent = UserAgent(db_session=db, user=current_user)
+    user_agent = UserAgent(db_session=db, user=current_user)
+    chat_messages = user_agent.get_message_history()
 
-        chat_messages = user_agent.get_message_history()
-
-        if not chat_messages:
-            return ChatHistoryResponse(
-                messages=[],
-                session_id="",
-                total_messages=0,
-            )
-
-        # Convert ChatMessage to API format
-        api_messages: List[ChatHistoryMessage] = []
-        for message in chat_messages:
-            # Convert tool calls to API format
-            tool_calls_dict = None
-            if message.tool_calls:
-                tool_calls_dict = [
-                    {"tool_name": tool_call.tool_name, "args": tool_call.args}
-                    for tool_call in message.tool_calls
-                ]
-
-            api_message = ChatHistoryMessage(
-                role=message.role,
-                content=message.content,
-                tool_calls=tool_calls_dict,
-                timestamp=None,
-            )
-            api_messages.append(api_message)
-
-        session_id = user_agent.session_id
-
+    if not chat_messages:
         return ChatHistoryResponse(
-            messages=api_messages,
-            session_id=session_id,
-            total_messages=len(api_messages),
+            messages=[],
+            session_id=user_agent.session_id,
+            total_messages=0,
         )
 
-    except Exception as e:
-        logger.error(f"Error retrieving chat history: {e}")
-        raise ChatSessionException(f"Failed to retrieve chat history: {str(e)}")
+    api_messages: List[ChatHistoryMessage] = []
+    for message in chat_messages:
+        # Convert tool calls to API format
+        tool_calls_dict = None
+        if message.tool_calls:
+            tool_calls_dict = [
+                {"tool_name": tool_call.tool_name, "args": tool_call.args}
+                for tool_call in message.tool_calls
+            ]
 
+        api_message = ChatHistoryMessage(
+            role=message.role,
+            content=message.content,
+            tool_calls=tool_calls_dict,
+            timestamp=None,
+        )
+        api_messages.append(api_message)
 
-async def async_error_stream(error_message: str, error_type: str):
-    """Async generator for streaming error responses"""
-    yield create_error_sse_event(error_message)
+    return ChatHistoryResponse(
+        messages=api_messages,
+        session_id=user_agent.session_id,
+        total_messages=len(api_messages),
+    )

@@ -9,6 +9,8 @@ cleanup() {
     echo ""
     echo "🛑 Shutting down local development environment..."
     docker-compose -f docker-compose-local.yml down
+
+    echo "📦 Stopping Supabase services..."
     supabase stop
     if [ ! -z "$FRONTEND_PID" ]; then
         kill $FRONTEND_PID 2>/dev/null
@@ -18,7 +20,7 @@ cleanup() {
 }
 
 # Set up signal traps for graceful shutdown
-trap cleanup SIGINT SIGTERM
+trap cleanup SIGINT SIGTERM EXIT
 
 echo "🚀 Starting local development environment..."
 

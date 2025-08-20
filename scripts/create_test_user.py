@@ -10,7 +10,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.database import db_manager, get_db_with_context  # noqa: E402
+from src.core.database import get_db_manager  # noqa: E402
 from src.models.listing import ListingType, PricePeriod  # noqa: E402
 from src.services.user_service import UserService, UserServiceException  # noqa: E402
 
@@ -165,9 +165,9 @@ def main():
 
     try:
         # Initialize database if needed
-        db_manager.init_db()
+        get_db_manager().init_db()
 
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             user_service = UserService(db)
             user = user_service.create_user(**user_data)
 

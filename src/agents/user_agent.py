@@ -223,6 +223,7 @@ class UserAgent:
         - Name: {ctx.deps.user.name}
         - Occupation: {ctx.deps.user.occupation or "not specified"}
         - Bio: {ctx.deps.user.bio or "not specified"}
+        - Profile Status: {"✅ Complete" if ctx.deps.user.profile_completed else "⏳ In Progress"}
 
         EXISTING PREFERENCES:
         - Price range: ${ctx.deps.user.min_price or "no min"} - ${ctx.deps.user.max_price or "no max"}
@@ -286,6 +287,15 @@ class UserAgent:
         ✓ Timeline requirements and flexibility levels
         ✓ Key lifestyle factors that impact housing choice
         ✓ Enough detail for another AI agent to make targeted recommendations
+
+        PROFILE COMPLETION PROCESS:
+        1. When you believe you have gathered comprehensive preferences, use 'mark_profile_complete'
+        2. The system requires:
+           - Detailed preferences (min 100 characters describing needs/wants)
+           - Budget range (both min and max price)
+           - Timeline information (specific dates or flexibility level)
+        3. If marking complete fails, the tool will tell you what's missing
+        4. Continue gathering the missing information and try again
 
         Only say "done" when you have a rich, nuanced profile that goes beyond basic criteria to capture the user's flexibility levels and underlying motivations for their housing preferences.
 

@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from src.core.database import get_db_with_context
+from src.core.database import get_db_manager
 from src.jobs.job_types import JobType
 from src.jobs.scheduler import JobScheduler
 from src.models.task import Task
@@ -22,7 +22,7 @@ class TaskManager:
         return task_id
 
     def get_task_status(self, task_id: str) -> Optional[Task]:
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             task = db.query(Task).filter_by(id=task_id).first()
             db.expunge_all()
             return task
@@ -65,7 +65,7 @@ class TaskManager:
             time.sleep(2)
 
     def list_tasks(self, task_type: str = None, status: str = None, limit: int = 10):
-        with get_db_with_context() as db:
+        with get_db_manager().get_session() as db:
             query = db.query(Task)
 
             if task_type:

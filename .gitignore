@@ -47,3 +47,7 @@ web/.env.production
 web/npm-debug.log*
 web/yarn-debug.log*
 web/yarn-error.log*
+
+
+# Celery
+celerybeat-schedule

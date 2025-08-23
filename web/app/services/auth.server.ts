@@ -65,6 +65,25 @@ export async function signIn(
   return { user: data.user, headers };
 }
 
+export async function signUp(
+  request: Request,
+  email: string,
+  password: string
+) {
+  const { supabase, headers } = createSupabaseServerClient(request);
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    return { error: error.message, headers };
+  }
+
+  return { user: data.user, headers };
+}
+
 export async function signOut(request: Request) {
   const { supabase, headers } = createSupabaseServerClient(request);
 

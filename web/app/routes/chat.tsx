@@ -1,25 +1,33 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { Link, useLoaderData, useNavigate } from "@remix-run/react";
 import { useState, useEffect, useRef } from "react";
 import { requireAuthenticatedUser } from "~/services/auth.server";
+import { getUserProfile } from "~/services/profile.server";
 import { MessageList } from "~/components/chat/MessageList";
 import { MessageInput } from "~/components/chat/MessageInput";
 import { useChat } from "~/hooks/useChat";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { user, headers } = await requireAuthenticatedUser(request);
+  const profile = await getUserProfile(request);
+
+  // If profile is already complete, redirect to dashboard
+  if (profile?.profile_completed) {
+    return redirect("/dashboard", { headers });
+  }
 
   return json(
     {
       user,
+      profile,
     },
     { headers }
   );
 }
 
 export default function Chat() {
-  const { user } = useLoaderData<typeof loader>();
+  const { user, profile } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const {
     messages,
@@ -65,14 +73,21 @@ export default function Chat() {
               <h1 className="text-xl font-semibold text-gray-900">
                 Dwell AI Assistant
               </h1>
+              {profile && !profile.profile_completed && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  Building Profile
+                </span>
+              )}
             </div>
             <div className="flex items-center space-x-4">
-              <Link
-                to="/dashboard"
-                className="text-sm text-gray-600 hover:text-gray-900"
-              >
-                Dashboard
-              </Link>
+              {profile?.profile_completed && (
+                <Link
+                  to="/dashboard"
+                  className="text-sm text-gray-600 hover:text-gray-900"
+                >
+                  Dashboard
+                </Link>
+              )}
               <span className="text-sm text-gray-500">{user.email}</span>
               <Link
                 to="/logout"
@@ -86,6 +101,25 @@ export default function Chat() {
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col max-w-6xl mx-auto w-full">
+        {/* Profile Progress Indicator */}
+        {profile && !profile.profile_completed && profile.missing_requirements && profile.missing_requirements.length > 0 && (
+          <div className="bg-blue-50 border-b border-blue-200 px-4 py-3">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 text-blue-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <p className="text-sm text-blue-800">
+                Tell me about your rental preferences to get personalized recommendations.
+                {profile.missing_requirements.length > 0 && (
+                  <span className="ml-1">
+                    Missing: {profile.missing_requirements.join(", ")}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -130,6 +164,28 @@ export default function Chat() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Profile Completion Success Message */}
+        {profile?.profile_completed && (
+          <div className="bg-green-50 border-t border-green-200 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <svg className="h-5 w-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm text-green-800">
+                  Profile complete! Ready to see your personalized listings.
+                </p>
+              </div>
+              <Link
+                to="/dashboard"
+                className="text-sm font-medium text-green-600 hover:text-green-500"
+              >
+                Go to Dashboard →
+              </Link>
+            </div>
+          </div>
+        )}
+
         <div className="border-t bg-white px-4 py-4">
           <MessageInput
             value={inputMessage}
@@ -140,6 +196,8 @@ export default function Chat() {
             placeholder={
               isStreaming
                 ? "AI is responding..."
+                : profile && !profile.profile_completed
+                ? "Tell me about your ideal rental..."
                 : "Ask about rental properties..."
             }
           />

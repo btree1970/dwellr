@@ -1,5 +1,9 @@
 import { useState, useCallback, useRef } from "react";
-import { chatAPIClient, type ChatMessage, type StreamEvent } from "~/services/api.client";
+import {
+  chatAPIClient,
+  type ChatMessage,
+  type StreamEvent,
+} from "~/services/api.client";
 
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -27,13 +31,20 @@ export function useChat() {
           const newMessages = [...prev];
           const lastMessage = newMessages[newMessages.length - 1];
 
-          if (lastMessage && lastMessage.role === "assistant" && !lastMessage.content) {
+          if (
+            lastMessage &&
+            lastMessage.role === "assistant" &&
+            !lastMessage.content
+          ) {
             lastMessage.content = currentStreamingMessage.current;
           } else {
             newMessages.push({
               role: "assistant",
               content: currentStreamingMessage.current,
-              tool_calls: currentToolCalls.current.length > 0 ? [...currentToolCalls.current] : undefined,
+              tool_calls:
+                currentToolCalls.current.length > 0
+                  ? [...currentToolCalls.current]
+                  : undefined,
             });
           }
           return newMessages;
@@ -94,12 +105,12 @@ export function useChat() {
     currentStreamingMessage.current = "";
     currentToolCalls.current = [];
 
+    // Add user message
     setMessages((prev) => [...prev, { role: "user", content: message }]);
 
     try {
       await chatAPIClient.streamMessage(message, handleStreamEvent);
     } catch (err) {
-      console.error("Failed to send message:", err);
       setError(err instanceof Error ? err.message : "Failed to send message");
       setIsStreaming(false);
     }

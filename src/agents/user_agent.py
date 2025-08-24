@@ -181,7 +181,7 @@ class UserAgent:
 
     def get_message_history(self) -> List[ChatMessage]:
         """Get formatted message history as ChatMessage objects."""
-        formatter = MessageHistoryFormatter(truncate_content=200, truncate_args=100)
+        formatter = MessageHistoryFormatter()
         return formatter.format_history(self._message_history)
 
     @property

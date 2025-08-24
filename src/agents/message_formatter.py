@@ -28,7 +28,7 @@ class ChatMessage:
 
 
 class MessageHistoryFormatter:
-    def __init__(self, truncate_content: int = 200, truncate_args: int = 100):
+    def __init__(self, truncate_content: int = 0, truncate_args: int = 0):
         """
         Initialize formatter with truncation limits.
 

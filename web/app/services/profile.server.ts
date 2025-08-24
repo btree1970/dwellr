@@ -24,10 +24,12 @@ export interface UserProfile {
   updated_at: string;
 }
 
-export async function getUserProfile(request: Request): Promise<UserProfile | null> {
+export async function getUserProfile(
+  request: Request
+): Promise<UserProfile | null> {
   try {
     const { proxy } = await createApiProxy(request);
-    const profile = await proxy.proxy<UserProfile>("/user/profile");
+    const profile = await proxy.proxy<UserProfile>("/api/v1/user/profile");
     return profile;
   } catch (error) {
     console.error("Failed to fetch user profile:", error);

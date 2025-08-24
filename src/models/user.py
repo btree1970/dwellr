@@ -20,7 +20,9 @@ class User(Base):
     auth_user_id: Mapped[Optional[str]] = mapped_column(
         String, unique=True, index=True
     )  # Links to Supabase auth.users.id
-    name: Mapped[str] = mapped_column(String)
+    first_name: Mapped[str] = mapped_column(String)
+    last_name: Mapped[str] = mapped_column(String)
+    age: Mapped[Optional[int]] = mapped_column(Integer)
     occupation: Mapped[Optional[str]] = mapped_column(String)
     bio: Mapped[Optional[str]] = mapped_column(String)
 
@@ -57,7 +59,7 @@ class User(Base):
     )
 
     def __repr__(self):
-        return f"<User(id='{self.id}', name='{self.name}')>"
+        return f"<User(id='{self.id}', name='{self.first_name} {self.last_name}')>"
 
     def get_stay_duration_days(self) -> Optional[int]:
         """Calculate stay duration in days from preferred dates"""

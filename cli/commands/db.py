@@ -5,7 +5,7 @@ import logging
 from rich.console import Console
 from rich.table import Table
 
-from src.core.database import db_manager
+from src.core.database import get_db_manager
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -107,6 +107,7 @@ def handle_init() -> bool:
     console.print("[yellow]Initializing database with migrations...[/yellow]")
 
     try:
+        db_manager = get_db_manager()
         db_manager.init_db()
         console.print("[green]✓ Database initialized successfully[/green]")
         return True
@@ -117,6 +118,7 @@ def handle_init() -> bool:
 
 def handle_migrate(target: str = "head") -> bool:
     """Run pending migrations."""
+    db_manager = get_db_manager()
     status = db_manager.check_migration_status()
 
     if status["is_up_to_date"]:
@@ -141,6 +143,7 @@ def handle_rollback(steps: int = 1) -> bool:
     console.print(f"[yellow]Rolling back {steps} migration(s)...[/yellow]")
 
     try:
+        db_manager = get_db_manager()
         for _ in range(steps):
             db_manager.downgrade("-1")
         console.print(f"[green]✓ Rolled back {steps} migration(s)[/green]")
@@ -160,6 +163,7 @@ def handle_reset(confirm: bool = False) -> bool:
     console.print("[yellow]Resetting database...[/yellow]")
 
     try:
+        db_manager = get_db_manager()
         db_manager.reset_db()
         console.print("[green]✓ Database reset successfully[/green]")
         return True
@@ -170,6 +174,7 @@ def handle_reset(confirm: bool = False) -> bool:
 
 def handle_status() -> bool:
     """Show migration status."""
+    db_manager = get_db_manager()
     status = db_manager.check_migration_status()
 
     table = Table(title="Migration Status")
@@ -193,6 +198,7 @@ def handle_status() -> bool:
 
 def handle_history(verbose: bool = False) -> bool:
     """Show migration history."""
+    db_manager = get_db_manager()
     history = db_manager.get_history(verbose)
 
     if not history:
@@ -233,6 +239,7 @@ def handle_create_migration(message: str, empty: bool = False) -> bool:
     console.print(f"[yellow]Creating migration: {message}[/yellow]")
 
     try:
+        db_manager = get_db_manager()
         revision = db_manager.create_migration(message, autogenerate=not empty)
         console.print(f"[green]✓ Created migration {revision[:8]}: {message}[/green]")
         return True
@@ -243,6 +250,7 @@ def handle_create_migration(message: str, empty: bool = False) -> bool:
 
 def handle_verify() -> bool:
     """Verify database schema."""
+    db_manager = get_db_manager()
     result = db_manager.verify_schema()
 
     table = Table(title="Schema Verification")
@@ -273,6 +281,7 @@ def handle_stamp(revision: str = "head") -> bool:
     console.print(f"[yellow]Stamping database with revision: {revision}[/yellow]")
 
     try:
+        db_manager = get_db_manager()
         db_manager.stamp(revision)
         console.print(f"[green]✓ Database stamped with revision: {revision}[/green]")
         return True

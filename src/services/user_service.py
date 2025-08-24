@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from returns.result import Failure, Result, Success
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -20,6 +20,48 @@ class UserNotFound(UserServiceException):
 
 class UserValidationError(UserServiceException):
     pass
+
+
+class CreateUserRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Required fields
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+
+    # Optional profile fields
+    age: Optional[int] = Field(None, ge=0, le=150)
+    occupation: Optional[str] = Field(None, max_length=200)
+    bio: Optional[str] = Field(None, max_length=1000)
+
+    # Auth and system fields
+    auth_user_id: Optional[str] = Field(None, max_length=100)
+    evaluation_credits: float = Field(default=5.0, ge=0)
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        return v.strip()
+
+    @field_validator("occupation", "bio")
+    @classmethod
+    def validate_text_fields(cls, v: Optional[str]) -> Optional[str]:
+        return v.strip() if v else v
+
+
+class UpdateUserRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    age: Optional[int] = Field(None, ge=0, le=150)
+    occupation: Optional[str] = Field(None, max_length=200)
+    bio: Optional[str] = Field(None, max_length=1000)
+
+    @field_validator("first_name", "last_name", "occupation", "bio")
+    @classmethod
+    def validate_text_fields(cls, v: Optional[str]) -> Optional[str]:
+        return v.strip() if v else v
 
 
 class UserPreferenceUpdates(BaseModel):
@@ -76,10 +118,9 @@ class UserService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_user(self, name: str, **kwargs: Any) -> User:
-        """Create a new user (typically called during first authentication)"""
+    def create_user(self, user_data: CreateUserRequest) -> User:
         try:
-            user = User(name=name, **kwargs)
+            user = User(**user_data.model_dump())
             self.db.add(user)
             self.db.commit()
             self.db.refresh(user)
@@ -93,16 +134,32 @@ class UserService:
             self.db.rollback()
             raise UserServiceException(f"Error creating user: {e}")
 
-    def find_or_create_user(self, auth_user_id: str, name: str, **kwargs: Any) -> User:
-        """Find existing user by auth_user_id or create new one (for auth integration)"""
+    def find_or_create_user(self, user_data: CreateUserRequest) -> User:
+        """Find existing user by auth_user_id or create new one"""
+        if not user_data.auth_user_id:
+            raise UserValidationError("auth_user_id is required for find_or_create")
+
         try:
             # Try to find existing user
-            user = self.db.query(User).filter(User.auth_user_id == auth_user_id).first()
+            user = (
+                self.db.query(User)
+                .filter(User.auth_user_id == user_data.auth_user_id)
+                .first()
+            )
             if user:
+                # Update user info with non-None values from request
+                update_data = user_data.model_dump(
+                    exclude_unset=True, exclude={"auth_user_id", "evaluation_credits"}
+                )
+                for field, value in update_data.items():
+                    if value is not None:
+                        setattr(user, field, value)
+                self.db.commit()
+                self.db.refresh(user)
                 return user
 
             # Create new user
-            return self.create_user(name=name, auth_user_id=auth_user_id, **kwargs)
+            return self.create_user(user_data)
         except Exception as e:
             self.db.rollback()
             raise UserServiceException(f"Error finding or creating user: {e}")
@@ -112,6 +169,23 @@ class UserService:
         if not user:
             raise UserNotFound(f"User with ID {user_id} not found")
         return user
+
+    def update_user_profile(self, user_id: str, update_data: UpdateUserRequest) -> User:
+        try:
+            user = self.get_user_by_id(user_id)
+
+            # Update only provided fields (exclude_unset=True)
+            for field, value in update_data.model_dump(exclude_unset=True).items():
+                setattr(user, field, value)
+
+            self.db.commit()
+            self.db.refresh(user)
+            return user
+        except UserNotFound:
+            raise
+        except Exception as e:
+            self.db.rollback()
+            raise UserServiceException(f"Error updating user profile: {e}")
 
     def update_user_preferences(
         self, user_id: str, updates: UserPreferenceUpdates

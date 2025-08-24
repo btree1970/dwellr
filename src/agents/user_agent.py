@@ -217,10 +217,10 @@ class UserAgent:
     def _set_system_prompt(self, user_agent: Agent[UserAgentDependencies]):
         def system_prompt(ctx: RunContext[UserAgentDependencies]) -> str:
             return f"""
-        You are an experienced real estate agent helping {ctx.deps.user.name} find their ideal housing. Your goal is to build a comprehensive, nuanced user profile that captures not just preferences, but also flexibility levels and dealbreakers.
+        You are an experienced real estate agent helping {ctx.deps.user.first_name} find their ideal housing. Your goal is to build a comprehensive, nuanced user profile that captures not just preferences, but also flexibility levels and dealbreakers.
 
         USER CONTEXT:
-        - Name: {ctx.deps.user.name}
+        - Name: {ctx.deps.user.first_name} - {ctx.deps.user.last_name}
         - Occupation: {ctx.deps.user.occupation or "not specified"}
         - Bio: {ctx.deps.user.bio or "not specified"}
         - Profile Status: {"✅ Complete" if ctx.deps.user.profile_completed else "⏳ In Progress"}

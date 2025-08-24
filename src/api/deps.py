@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from src.core.database import get_db
 from src.core.supabase import get_supabase_client
 from src.models.user import User
-from src.services.user_service import UserService
+from src.services.user_service import CreateUserRequest, UserService
 from supabase._async.client import AsyncClient
 
 # Security scheme for JWT token extraction
@@ -38,15 +38,18 @@ async def get_current_user(
         # Use UserService to find or create user
         user_service = UserService(session)
         user_metadata = supabase_user.user_metadata or {}
-        user_name = (
-            user_metadata.get("full_name") or user_metadata.get("name") or "User"
+
+        user_data = CreateUserRequest(
+            auth_user_id=supabase_user_id,
+            first_name=user_metadata.get("firstName", "Unknown"),
+            last_name=user_metadata.get("lastName", "User"),
+            age=user_metadata.get("age"),
+            occupation=user_metadata.get("occupation"),
+            bio=user_metadata.get("bio"),
+            evaluation_credits=5.0,
         )
 
-        user = user_service.find_or_create_user(
-            auth_user_id=supabase_user_id,
-            name=user_name,
-            evaluation_credits=5.0,  # Give new users some starting credits
-        )
+        user = user_service.find_or_create_user(user_data)
 
         return user
 

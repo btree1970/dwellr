@@ -68,13 +68,23 @@ export async function signIn(
 export async function signUp(
   request: Request,
   email: string,
-  password: string
+  password: string,
+  metadata?: {
+    firstName: string;
+    lastName: string;
+    age: number | null;
+    occupation: string | null;
+    bio: string | null;
+  }
 ) {
   const { supabase, headers } = createSupabaseServerClient(request);
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: metadata ? {
+      data: metadata
+    } : undefined
   });
 
   if (error) {

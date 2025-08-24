@@ -60,7 +60,9 @@ async def test_auth(current_user: CurrentUser) -> Dict[str, Any]:
         "message": "Authentication successful",
         "user": {
             "id": current_user.id,
-            "name": current_user.name,
+            "name": f"{current_user.first_name} {current_user.last_name}",
+            "first_name": current_user.first_name,
+            "last_name": current_user.last_name,
         },
     }
 

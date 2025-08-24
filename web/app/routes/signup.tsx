@@ -18,10 +18,22 @@ export async function action({ request }: ActionFunctionArgs) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
+  const firstName = formData.get("firstName") as string;
+  const lastName = formData.get("lastName") as string;
+  const age = formData.get("age") as string;
+  const occupation = formData.get("occupation") as string;
+  const bio = formData.get("bio") as string;
 
   if (!email || !password) {
     return json(
       { error: "Email and password are required" },
+      { status: 400 }
+    );
+  }
+
+  if (!firstName || !lastName) {
+    return json(
+      { error: "First name and last name are required" },
       { status: 400 }
     );
   }
@@ -40,7 +52,22 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
-  const { user, error, headers } = await signUp(request, email, password);
+  if (age && (isNaN(Number(age)) || Number(age) < 0 || Number(age) > 150)) {
+    return json(
+      { error: "Please enter a valid age" },
+      { status: 400 }
+    );
+  }
+
+  const metadata = {
+    firstName,
+    lastName,
+    age: age ? Number(age) : null,
+    occupation: occupation || null,
+    bio: bio || null
+  };
+
+  const { user, error, headers } = await signUp(request, email, password, metadata);
 
   if (error) {
     return json(
@@ -88,6 +115,36 @@ export default function Signup() {
 
         <Form method="post" className="mt-8 space-y-6">
           <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                  First Name
+                </label>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  autoComplete="given-name"
+                  required
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  placeholder="John"
+                />
+              </div>
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                  Last Name
+                </label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  autoComplete="family-name"
+                  required
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  placeholder="Doe"
+                />
+              </div>
+            </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
@@ -100,6 +157,47 @@ export default function Signup() {
                 required
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="you@example.com"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="age" className="block text-sm font-medium text-gray-700">
+                  Age (optional)
+                </label>
+                <input
+                  id="age"
+                  name="age"
+                  type="number"
+                  min="0"
+                  max="150"
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  placeholder="25"
+                />
+              </div>
+              <div>
+                <label htmlFor="occupation" className="block text-sm font-medium text-gray-700">
+                  Occupation (optional)
+                </label>
+                <input
+                  id="occupation"
+                  name="occupation"
+                  type="text"
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  placeholder="Designer"
+                />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
+                Bio (optional)
+                <span className="ml-1 text-xs text-gray-500">- helps our AI craft personalized messages for you</span>
+              </label>
+              <textarea
+                id="bio"
+                name="bio"
+                rows={3}
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Share your interests and lifestyle preferences to help our AI assistant better match you with properties..."
               />
             </div>
             <div>
